@@ -74,7 +74,16 @@ form.panel { display: grid; gap: 28px; }
 }
 
 .drawbox { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 600px) { .drawbox { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 600px) {
+  /* Single column on phones: tools and colours sit above the grid, previews below it. */
+  .drawbox { grid-template-columns: minmax(0,1fr); justify-items: center; gap: 14px; }
+  .drawbox > div:first-child { order: 3; width: 100%; max-width: 300px; }
+  .drawbox > .controls { display: contents; }
+  .drawbox .tools { order: 1; width: 100%; }
+  .drawbox .palette { order: 2; width: 100%; }
+  .drawbox .preview { order: 4; }
+  .drawbox .controls > .help { order: 5; text-align: center; }
+}
 #board { width: 100%; max-width: 300px; aspect-ratio: 12 / 21; display: block; touch-action: none; cursor: crosshair; border: 1px solid var(--line); border-radius: 6px; }
 .board-meta { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 6px; max-width: 300px; font-variant-numeric: tabular-nums; }
 .controls { display: grid; gap: 16px; min-width: 0; }
@@ -138,9 +147,6 @@ dialog .msg:empty { display: none; }
   header.top { margin-bottom: 20px; }
   .panel { padding: 16px; }
   form.panel { gap: 24px; }
-  .drawbox { justify-items: center; }
-  .drawbox > div:first-child { width: 100%; max-width: 300px; }
-  .controls { width: 100%; }
   .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
   .tool { min-height: 40px; }
   .palette { grid-template-columns: repeat(8, minmax(0, 1fr)); }
@@ -195,7 +201,7 @@ dialog .msg:empty { display: none; }
             <div class="tools" role="toolbar" aria-label="Tools">
               <button type="button" class="tool" id="t-pen" aria-pressed="true">Pen</button>
               <button type="button" class="tool" id="t-erase" aria-pressed="false">Eraser</button>
-              <button type="button" class="tool" id="t-mirror" aria-pressed="true">Mirror</button>
+              <button type="button" class="tool" id="t-mirror" aria-pressed="false">Mirror</button>
               <button type="button" class="tool" id="t-undo" disabled>Undo</button>
               <button type="button" class="tool" id="t-clear">Clear</button>
             </div>
@@ -204,7 +210,7 @@ dialog .msg:empty { display: none; }
               <figure><canvas id="pv-piece" class="px" width="14" height="23"></canvas><figcaption>Your piece</figcaption></figure>
               <figure><canvas id="pv-worn" class="px" width="14" height="23"></canvas><figcaption>On the mannequin</figcaption></figure>
             </div>
-            <p class="help" style="margin:0">Mirror paints both sides at once. A dark outline is added automatically on stage.</p>
+            <p class="help" style="margin:0">Turn on Mirror to paint both sides at once. A dark outline is added automatically on stage.</p>
           </div>
         </div>
       </div>
@@ -341,7 +347,7 @@ function setCat(k) {
 
 /* ===== Drawing ===== */
 const board = document.getElementById("board"), bx = board.getContext("2d");
-let pixels = BLANK.split(""), color = 8, erasing = false, mirror = true;
+let pixels = BLANK.split(""), color = 8, erasing = false, mirror = false;
 const history = [];
 const palEl = document.getElementById("palette");
 PAL.forEach((c, i) => {
