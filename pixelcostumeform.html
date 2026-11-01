@@ -129,6 +129,7 @@ dialog form { display: grid; gap: 12px; }
 dialog h2 { margin: 0; font-size: 17px; }
 dialog .field input { width: 100%; min-height: 44px; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); letter-spacing: .3em; }
 dialog .msg:empty { display: none; }
+.key-box { display: grid; gap: 12px; margin-bottom: 16px; }
 .review-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
 
 /* ===== Mobile ===== */
@@ -222,7 +223,11 @@ dialog .msg:empty { display: none; }
   <!-- ============ REVIEW ============ -->
   <section id="view-review" hidden>
     <div class="review-top"><h1>Review submissions</h1><span><a href="#" class="link-btn" id="rv-back">Back to form</a> <button type="button" class="link-btn" id="rv-lock">Lock</button></span></div>
-    <p class="lede">Only editors of this page see this screen and contact details. Feature a piece to mark it for the stage, then export the featured set.</p>
+    <p class="lede">Entries are read from the Google Sheet. Feature a piece to mark it for the stage, then export the featured set.</p>
+    <form class="panel key-box" id="key-box" hidden>
+      <div class="field"><label for="key-in">Sheet access key</label><input type="password" id="key-in" autocomplete="off" placeholder="The ADMIN_KEY you set in Apps Script"><span class="help">Saved on this device only. Needed to read entries and contact details.</span></div>
+      <div class="submit-row"><button type="submit" class="btn primary">Connect</button><span class="msg bad" id="key-msg" role="status"></span></div>
+    </form>
     <div class="stats">
       <div class="stat"><b id="s-total">0</b><span>pieces</span></div>
       <div class="stat"><b id="s-people">0</b><span>designers</span></div>
@@ -239,8 +244,9 @@ dialog .msg:empty { display: none; }
       </div>
     </div>
     <div class="bar">
+      <button type="button" class="btn" id="x-refresh">Refresh</button>
       <button type="button" class="btn" id="x-json">Copy featured (JSON)</button>
-      <button type="button" class="btn" id="x-dl" hidden>Download JSON</button>
+      <button type="button" class="btn" id="x-dl">Download JSON</button>
       <button type="button" class="btn" id="x-csv">Copy contacts (CSV)</button>
       <span class="msg" id="x-msg" role="status"></span>
     </div>
@@ -522,7 +528,16 @@ async function copyOut(text, label) {
 document.getElementById("x-json").addEventListener("click", () => copyOut(exportJSON(), "Featured pieces"));
 document.getElementById("x-csv").addEventListener("click", () => copyOut(exportCSV(), "Contact list"));
 document.getElementById("x-dl").addEventListener("click", async () => {
-  try { await downloads.save({ filename: "pixel-parade-apparel.json", data: exportJSON() }); xMsg.className = "msg good"; xMsg.textContent = "Saved."; }
+  try {
+    if (downloads) await downloads.save({ filename: "amj26-outfits.json", data: exportJSON() });
+    else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([exportJSON()], { type: "application/json" }));
+      a.download = "amj26-outfits.json"; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    xMsg.className = "msg good"; xMsg.textContent = "Saved.";
+  }
   catch (e) { xMsg.className = "msg"; xMsg.textContent = "Download cancelled. Use Copy instead."; }
 });
 
@@ -541,7 +556,7 @@ function route() {
   const v = want === "review" && unlocked && isEditor ? "review" : "submit";
   Object.entries(views).forEach(([k, id]) => { document.getElementById(id).hidden = k !== v; });
   document.getElementById("gear").hidden = v === "review";
-  if (v === "review") renderReview();
+  if (v === "review") { renderReview(); if (db && db.refresh) db.refresh(); }
 }
 addEventListener("hashchange", route);
 const pinDlg = document.getElementById("pin-dlg"), pinIn = document.getElementById("pin-in"), pinMsg = document.getElementById("pin-msg");
@@ -571,6 +586,81 @@ document.getElementById("rv-lock").addEventListener("click", () => {
 });
 
 /* ===== Boot ===== */
+// Google Apps Script web app URL (see apps-script/Code.gs). Empty = save on this device only.
+const SHEET_URL = "";
+const ADMIN_KEY_STORE = "amj26-admin-key";
+const keyBox = document.getElementById("key-box"), keyIn = document.getElementById("key-in"), keyMsg = document.getElementById("key-msg");
+
+function makeSheetDb(url) {
+  let adminKey = "";
+  try { adminKey = localStorage.getItem(ADMIN_KEY_STORE) || ""; } catch (e) {}
+  const subs = { entries: new Set(), showcase: new Set() };
+  let rows = [], loading = false;
+  const call = async (body) => {
+    // text/plain keeps this a "simple" request, so the browser skips the CORS preflight Apps Script can't answer.
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!j.ok) { const err = new Error(j.error || "failed"); err.code = j.error; throw err; }
+    return j;
+  };
+  const emit = () => {
+    const entries = rows.map(d => ({ id: "row-" + d.id, data: () => ({ name: d.name, contact: d.contact,
+      designs: [{ id: d.id, category: d.category, title: d.title, pixels: d.pixels, createdAt: d.createdAt }] }) }));
+    const featured = rows.filter(d => d.featured).map(d => ({ id: "row-" + d.id + "--" + d.id, data: () => ({ by: "row-" + d.id, designId: d.id,
+      category: d.category, title: d.title, designer: d.name, pixels: d.pixels, featuredAt: d.createdAt }) }));
+    subs.entries.forEach(cb => cb({ metadata: { fromCache: false }, docs: entries }));
+    subs.showcase.forEach(cb => cb({ metadata: { fromCache: false }, docs: featured }));
+  };
+  const showKeyBox = (msg) => { keyBox.hidden = false; keyMsg.textContent = msg || ""; };
+  async function refresh() {
+    if (!adminKey) { showKeyBox(); return; }
+    if (loading) return; loading = true;
+    try {
+      const r = await fetch(url + "?key=" + encodeURIComponent(adminKey));
+      const j = await r.json();
+      if (!j.ok) { if (j.error === "unauthorized") showKeyBox("That key didn't work."); else say("Couldn't load entries from the sheet."); return; }
+      keyBox.hidden = true; say("");
+      rows = (j.entries || []).filter(d => validPixels(d.pixels) && CATS[d.category]);
+      emit();
+    } catch (e) { say("Couldn't reach the Google Sheet. Check your connection and press Refresh."); }
+    finally { loading = false; }
+  }
+  keyBox.addEventListener("submit", ev => {
+    ev.preventDefault();
+    adminKey = keyIn.value.trim(); keyIn.value = "";
+    try { localStorage.setItem(ADMIN_KEY_STORE, adminKey); } catch (e) {}
+    refresh();
+  });
+  document.getElementById("rv-lock").addEventListener("click", () => {
+    adminKey = ""; rows = []; emit();
+    try { localStorage.removeItem(ADMIN_KEY_STORE); } catch (e) {}
+  });
+  const setFeatured = async (path, on) => {
+    const id = path.split("--").pop();
+    await call({ action: "feature", key: adminKey, id, featured: on });
+    await refresh();
+  };
+  return {
+    refresh,
+    doc(path) {
+      const [collection, id] = path.split("/");
+      return {
+        async set(data) {
+          if (collection === "showcase") return setFeatured(id, true);
+          const d = data.designs[0];
+          await call({ action: "submit", id: d.id, name: data.name, contact: data.contact, consent: data.consent === true,
+            category: d.category, title: d.title, pixels: d.pixels });
+        },
+        async delete() { if (collection === "showcase") return setFeatured(id, false); },
+        onSnapshot(cb) { cb({ exists: false, metadata: { fromCache: false }, data: () => null, id }); return () => {}; },
+      };
+    },
+    collection(name) {
+      return { onSnapshot(cb) { (subs[name] || new Set()).add(cb); return () => subs[name].delete(cb); } };
+    },
+  };
+}
+
 function makeLocalDb() {
   const key = "pixel-parade-local-store";
   const read = () => {
@@ -642,6 +732,12 @@ async function init() {
     if (window.claude && typeof window.claude.use === "function")
       [db, user, downloads] = await Promise.all([window.claude.use("db"), window.claude.use("user"), window.claude.use("downloads")]);
   } catch (e) {}
+  if ((!db || !user) && SHEET_URL) {
+    db = makeSheetDb(SHEET_URL);
+    user = { id: async () => "web", canEdit: async () => true };
+    localMode = true; // one row per submission, no per-person cap
+    downloads = null;
+  }
   if (!db || !user) {
     db = makeLocalDb();
     user = { id: async () => "local-user", canEdit: async () => true };
@@ -649,9 +745,8 @@ async function init() {
     downloads = null;
   }
   me = await user.id(); isEditor = await user.canEdit();
-  document.getElementById("x-dl").hidden = !downloads;
   route();
-  const slow = setTimeout(() => say("Can't reach submissions yet. This page keeps trying."), 10000);
+  const slow = SHEET_URL ? 0 : setTimeout(() => say("Can't reach submissions yet. This page keeps trying."), 10000);
   const ok = () => { clearTimeout(slow); if (notice.textContent.startsWith("Can't reach")) say(""); };
   db.collection("showcase").onSnapshot(s => { if (!s.metadata.fromCache) ok(); showcase = new Map(s.docs.map(d => [d.id, d.data()])); renderReview(); },
     () => say("The showcase feed stopped. Reload the page to reconnect."));
