@@ -510,9 +510,10 @@ function exportJSON() {
     palette: PAL, layerOrder: ["body","bottom","top","hair","accessory"], pieces }, null, 2);
 }
 function exportCSV() {
-  const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+  // Prefix values that start like a formula (=, +, -, @) so Excel/Sheets treat them as text, not formulas.
+  const q = s => { let v = String(s); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
   const rows = [["piece","type","designer","contact","submitted"]];
-  flat().filter(x => x.feat).forEach(x => rows.push([x.d.title, CATS[x.cat].label, x.name, x.contact, new Date(x.d.createdAt).toISOString()]));
+  flat().filter(x => x.feat).forEach(x => rows.push([clean(x.d.title, 24), CATS[x.cat].label, x.name, x.contact, new Date(x.d.createdAt).toISOString()]));
   return rows.map(r => r.map(q).join(",")).join("\n");
 }
 async function copyOut(text, label) {
