@@ -1,0 +1,774 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:dark;background:#0f0e0e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0f0e0e;color:#f3efe8}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AMJ26 pixel form</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700&family=Press+Start+2P&display=swap">
+<style>
+/* Layout: one narrow centred column. A plain form with numbered steps (they are a real sequence), a compact drawing block inside step 3, then "your submissions". Showcase and Review are simple secondary views via hash tabs. */
+:root {
+  /* page background matches the logo's own background so the logo sits seamlessly */
+  --bg: #0f0e0e;
+  --surface: #191717;
+  --field: #0f0e0e;
+  --ink: #f3efe8;
+  --muted: #a8a19a;
+  --line: #2f2b2b;
+  --accent: #ff5aa8;
+  --accent-ink: #0f0e0e;
+  --feat: #ffd56b;
+  --feat-bg: #3a2f10;
+  --good: #7fdc95;
+  --bad: #ff8a80;
+  --font: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mark: "Press Start 2P", "Courier New", monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; }
+*, *::before, *::after { box-sizing: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+canvas.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+.wrap {
+  max-width: 760px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 28px; }
+.brand-wrap { display: grid; gap: 10px; align-items: center; justify-items: start; }
+.brand-logo { display: block; width: min(100%, 480px); height: auto; }
+.tabs { display: flex; gap: 4px; }
+@media (max-width: 620px) {
+  header.top { align-items: flex-start; }
+  .tabs { width: 100%; justify-content: space-between; }
+  .tabs a { flex: 1; text-align: center; }
+  .brand-wrap { width: 100%; }
+}
+.tabs a { text-decoration: none; color: var(--muted); font-weight: 500; padding: 6px 12px; border-radius: 6px; }
+.tabs a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+
+h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; margin: 0 0 8px; text-wrap: balance; letter-spacing: -.01em; }
+.lede { color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+.notice { background: var(--feat-bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+form.panel { display: grid; gap: 28px; }
+.step { display: grid; gap: 12px; }
+.step-h { display: flex; gap: 10px; align-items: baseline; }
+.step-h b { font-size: 13px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.step-h h2 { margin: 0; font-size: 17px; }
+.row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 560px) { .row { grid-template-columns: minmax(0,1fr); } }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-weight: 500; font-size: 14px; min-height: 21px; display: flex; align-items: flex-end; flex-wrap: wrap; gap: 2px; }
+.field input[type=text], .field select { width: 100%; min-height: 44px; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); }
+.field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
+.help { color: var(--muted); font-size: 13px; }
+
+.cat-select-field { max-width: 320px; }
+.field select { appearance: none; padding-right: 36px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px); background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
+@media (max-width: 560px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .cat-select-field { max-width: none; }
+}
+
+.drawbox { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 600px) { .drawbox { grid-template-columns: minmax(0,1fr); } }
+#board { width: 100%; max-width: 300px; aspect-ratio: 12 / 21; display: block; touch-action: none; cursor: crosshair; border: 1px solid var(--line); border-radius: 6px; }
+.board-meta { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 6px; max-width: 300px; font-variant-numeric: tabular-nums; }
+.controls { display: grid; gap: 16px; min-width: 0; }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.tool { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 14px; }
+.tool[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.tool:disabled { opacity: .45; cursor: not-allowed; }
+.palette { display: grid; grid-template-columns: repeat(8, minmax(0, 32px)); gap: 6px; }
+.sw { aspect-ratio: 1; width: 100%; border-radius: 6px; border: 1px solid rgba(0,0,0,.25); padding: 0; }
+.sw[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.preview { display: flex; gap: 14px; align-items: end; }
+.preview figure { margin: 0; display: grid; gap: 4px; justify-items: center; }
+.preview canvas { width: 56px; height: 92px; background: #1a1538; border-radius: 6px; padding: 6px; box-sizing: content-box; }
+.preview figcaption { font-size: 12px; color: var(--muted); }
+
+.check { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; align-items: start; font-size: 15px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); margin-top: 3px; }
+.submit-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.btn { padding: 11px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.msg { font-size: 15px; }
+.msg.good { color: var(--good); } .msg.bad { color: var(--bad); }
+
+.list { display: grid; gap: 8px; }
+.link-btn { background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 14px; padding: 4px; }
+.link-btn.armed { color: var(--bad); }
+.empty { color: var(--muted); padding: 14px; border: 1px dashed var(--line); border-radius: 8px; }
+
+/* review */
+.stats { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 16px; }
+.stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 7px 11px; font-size: 14px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.rv { display: grid; grid-template-columns: 64px minmax(0,1fr) auto; gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+@media (max-width: 560px) { .rv { grid-template-columns: 64px minmax(0,1fr); } .rv .act { grid-column: 1 / -1; } }
+.rv canvas { width: 56px; height: 92px; background: #1a1538; border-radius: 6px; padding: 4px; box-sizing: content-box; }
+.rv .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.rv .t { font-weight: 600; overflow-wrap: anywhere; }
+.rv.is-feat { border-color: var(--feat); }
+.copy-out { width: 100%; min-height: 120px; margin-bottom: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+
+/* organiser access: invisible corner hotspot (tap 6 times) + PIN */
+.gear { position: fixed; right: 0; bottom: 0; width: 64px; height: 64px; padding: 0; border: 0; background: transparent; opacity: 0; cursor: default; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.gear:focus, .gear:focus-visible { outline: none; }
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 20px; width: min(320px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(10,7,24,.55); }
+dialog form { display: grid; gap: 12px; }
+dialog h2 { margin: 0; font-size: 17px; }
+dialog .field input { width: 100%; min-height: 44px; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); letter-spacing: .3em; }
+dialog .msg:empty { display: none; }
+.key-box { display: grid; gap: 12px; margin-bottom: 16px; }
+.review-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+
+/* ===== Mobile ===== */
+@media (max-width: 560px) {
+  .wrap { padding-block: 16px 40px; }
+  header.top { margin-bottom: 20px; }
+  .panel { padding: 16px; }
+  form.panel { gap: 24px; }
+  .drawbox { justify-items: center; }
+  .drawbox > div:first-child { width: 100%; max-width: 300px; }
+  .controls { width: 100%; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+  .tool { min-height: 40px; }
+  .palette { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .preview { justify-content: center; }
+  .submit-row .btn { width: 100%; }
+  .bar .btn { flex: 1 1 auto; }
+  .seg { flex-wrap: wrap; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand-wrap" aria-label="AMJ26 pixel form">
+      <img src="amj26-logo.png" alt="Marsiling's Arts &amp; Music Jam 2026" class="brand-logo" width="968" height="318">
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <!-- ============ SUBMIT ============ -->
+  <section id="view-submit">
+    <h1>Costume Call: design a piece for the stage</h1>
+    <p class="lede">Draw one piece of 8-bit apparel: a hairstyle, a top, bottoms or an accessory. Featured pieces become options guests can wear on their avatar.</p>
+
+    <form class="panel" id="form" autocomplete="off">
+      <div class="step">
+        <div class="step-h"><b>1</b><h2>About you</h2></div>
+        <div class="row">
+          <div class="field"><label for="f-name">Name</label><input type="text" id="f-name" maxlength="16" placeholder="Shown with your piece"></div>
+          <div class="field"><label for="f-contact">Email, Instagram / Telegram handle <span class="help">(optional)</span></label><input type="text" id="f-contact" maxlength="60" placeholder="So we can tell you if it's featured"></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><b>2</b><h2>What are you designing?</h2></div>
+        <div class="field cat-select-field">
+          <label for="cat-select">Piece type</label>
+          <select id="cat-select" aria-label="Piece type"></select>
+        </div>
+        <div class="field"><label for="f-title">Piece name</label><input type="text" id="f-title" maxlength="24" placeholder="e.g. Neon Mullet"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><b>3</b><h2>Draw it</h2></div>
+        <p class="help" id="zone-help" style="margin:0"></p>
+        <div class="drawbox">
+          <div>
+            <canvas id="board" class="px" width="300" height="525" aria-label="Drawing grid, 12 by 21 pixels"></canvas>
+            <div class="board-meta"><span id="cursor">&nbsp;</span><span id="count">0 px</span></div>
+          </div>
+          <div class="controls">
+            <div class="tools" role="toolbar" aria-label="Tools">
+              <button type="button" class="tool" id="t-pen" aria-pressed="true">Pen</button>
+              <button type="button" class="tool" id="t-erase" aria-pressed="false">Eraser</button>
+              <button type="button" class="tool" id="t-mirror" aria-pressed="true">Mirror</button>
+              <button type="button" class="tool" id="t-undo" disabled>Undo</button>
+              <button type="button" class="tool" id="t-clear">Clear</button>
+            </div>
+            <div class="palette" id="palette" role="group" aria-label="Colours"></div>
+            <div class="preview">
+              <figure><canvas id="pv-piece" class="px" width="14" height="23"></canvas><figcaption>Your piece</figcaption></figure>
+              <figure><canvas id="pv-worn" class="px" width="14" height="23"></canvas><figcaption>On the mannequin</figcaption></figure>
+            </div>
+            <p class="help" style="margin:0">Mirror paints both sides at once. A dark outline is added automatically on stage.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <label class="check"><input type="checkbox" id="f-ok"><span>If my piece is featured, it can appear on the festival screen with my name.</span></label>
+        <div class="submit-row">
+          <button type="submit" class="btn primary" id="f-send" disabled>Submit piece</button>
+          <span class="msg" id="f-msg" role="status"></span>
+        </div>
+      </div>
+    </form>
+
+  </section>
+
+  <!-- ============ REVIEW ============ -->
+  <section id="view-review" hidden>
+    <div class="review-top"><h1>Review submissions</h1><span><a href="#" class="link-btn" id="rv-back">Back to form</a> <button type="button" class="link-btn" id="rv-lock">Lock</button></span></div>
+    <p class="lede">Entries are read from the Google Sheet. Feature a piece to mark it for the stage, then export the featured set.</p>
+    <form class="panel key-box" id="key-box" hidden>
+      <div class="field"><label for="key-in">Sheet access key</label><input type="password" id="key-in" autocomplete="off" placeholder="The ADMIN_KEY you set in Apps Script"><span class="help">Saved on this device only. Needed to read entries and contact details.</span></div>
+      <div class="submit-row"><button type="submit" class="btn primary">Connect</button><span class="msg bad" id="key-msg" role="status"></span></div>
+    </form>
+    <div class="stats">
+      <div class="stat"><b id="s-total">0</b><span>pieces</span></div>
+      <div class="stat"><b id="s-people">0</b><span>designers</span></div>
+      <div class="stat"><b id="s-feat">0</b><span>featured</span></div>
+    </div>
+    <div class="bar">
+      <div class="seg" id="f-status">
+        <button type="button" data-v="all" aria-pressed="true">All</button>
+        <button type="button" data-v="review" aria-pressed="false">In review</button>
+        <button type="button" data-v="feat" aria-pressed="false">Featured</button>
+      </div>
+      <div class="seg" id="f-cat">
+        <button type="button" data-v="all" aria-pressed="true">Any type</button>
+      </div>
+    </div>
+    <div class="bar">
+      <button type="button" class="btn" id="x-refresh">Refresh</button>
+      <button type="button" class="btn" id="x-json">Copy featured (JSON)</button>
+      <button type="button" class="btn" id="x-dl">Download JSON</button>
+      <button type="button" class="btn" id="x-csv">Copy contacts (CSV)</button>
+      <span class="msg" id="x-msg" role="status"></span>
+    </div>
+    <textarea class="copy-out" id="x-out" readonly hidden aria-label="Export text"></textarea>
+    <div class="list" id="queue"><div class="empty">No submissions yet.</div></div>
+  </section>
+</div>
+
+<button type="button" class="gear" id="gear" tabindex="-1" aria-hidden="true"></button>
+<dialog id="pin-dlg" aria-labelledby="pin-h">
+  <form id="pin-form" method="dialog">
+    <h2 id="pin-h">Organiser access</h2>
+    <div class="field"><label for="pin-in">PIN</label><input type="password" id="pin-in" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></div>
+    <p class="msg bad" id="pin-msg" role="status"></p>
+    <div class="submit-row"><button type="submit" class="btn primary" value="ok">Unlock</button><button type="button" class="btn" id="pin-cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+"use strict";
+
+/* ===== Spec shared with Pixel Parade Live =====
+   Every piece is a transparent 12x21 layer. Stage stacks: body > bottom > top > hair > accessory. */
+const GW = 12, GH = 21, SW = 14, SH = 23, CELLS = GW * GH, MAX = 5;
+const OUTLINE = "#0a0718";
+const PAL = ["#1b1530","#f4f0ff","#a39cd6","#4a4470","#ffdbb4","#d39a6a","#7a4a2c","#5a3825",
+             "#ff3fa4","#ff6b3f","#ffd23f","#7cff6b","#3ff0ff","#1d3b6e","#9b5cff","#2b2560"];
+const PAL_NAMES = ["ink","white","lilac","slate","light skin","tan skin","deep skin","brown","pink","orange","gold","lime","cyan","navy","purple","indigo"];
+const HEX = "0123456789abcdef";
+const CATS = {
+  hair:      { label: "Hairstyle", note: "Head area",      zone: (x, y) => y <= 10,                      help: "Draw in the head area (rows 0–10). Long hair can reach the shoulders." },
+  top:       { label: "Top",       note: "Torso & arms",   zone: (x, y) => y >= 9 && y <= 15 && x >= 1 && x <= 10, help: "Draw on the torso and arms (rows 9–15). Sleeves go in the arm columns either side." },
+  bottom:    { label: "Bottoms",   note: "Legs & shoes",   zone: (x, y) => y >= 15,                      help: "Draw on the legs and feet (rows 15–20). Shoes sit on row 19." },
+  accessory: { label: "Accessory", note: "Anywhere",       zone: () => true,                             help: "Glasses, headphones, hats, a glowstick in hand: draw anywhere on the grid." },
+};
+const ORDER = ["hair","top","bottom","accessory"];
+
+function mannequin() {
+  const g = Array(CELLS).fill(".");
+  const P = (x, y, c) => { g[y * GW + x] = HEX[c]; };
+  const R = (x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) P(x, y, c); };
+  R(3,9,8,14,3); R(2,9,2,13,3); R(9,9,9,13,3); P(2,14,5); P(9,14,5);
+  R(3,15,8,15,15); R(3,16,4,18,15); R(7,16,8,18,15); R(2,19,4,19,0); R(7,19,9,19,0);
+  R(3,3,8,8,5); P(4,6,0); P(7,6,0);
+  return g.join("");
+}
+const BODY = mannequin();
+const BLANK = ".".repeat(CELLS);
+const validPixels = s => typeof s === "string" && s.length === CELLS && /^[0-9a-f.]+$/.test(s);
+const layer = (under, over) => { let o = ""; for (let i = 0; i < CELLS; i++) o += over[i] !== "." ? over[i] : under[i]; return o; };
+
+function spriteCanvas(pixels, canvas) {
+  const c = canvas || document.createElement("canvas"); c.width = SW; c.height = SH;
+  const x = c.getContext("2d"); x.clearRect(0, 0, SW, SH);
+  if (!validPixels(pixels)) return c;
+  const on = (gx, gy) => gx >= 0 && gx < GW && gy >= 0 && gy < GH && pixels[gy * GW + gx] !== ".";
+  for (let y = -1; y <= GH; y++) for (let gx = -1; gx <= GW; gx++) {
+    if (on(gx, y)) { x.fillStyle = PAL[HEX.indexOf(pixels[y * GW + gx])]; x.fillRect(gx + 1, y + 1, 1, 1); }
+    else if (on(gx-1,y) || on(gx+1,y) || on(gx,y-1) || on(gx,y+1)) { x.fillStyle = OUTLINE; x.fillRect(gx + 1, y + 1, 1, 1); }
+  }
+  return c;
+}
+const worn = p => layer(BODY, p);
+const catOf = c => CATS[c] ? c : "accessory";
+const clean = (s, n) => String(s || "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+const fmt = ms => ms ? new Date(ms).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const notice = document.getElementById("notice");
+const say = t => { notice.textContent = t; notice.hidden = !t; };
+
+/* ===== Form: category ===== */
+let cat = "hair";
+const catSelect = document.getElementById("cat-select"), zoneHelp = document.getElementById("zone-help");
+ORDER.forEach(k => {
+  const option = document.createElement("option");
+  option.value = k;
+  option.textContent = `${CATS[k].label} · ${CATS[k].note}`;
+  catSelect.append(option);
+});
+catSelect.addEventListener("change", e => setCat(e.target.value));
+function setCat(k) {
+  if (k !== cat) {
+    const kept = pixels.map((p, i) => CATS[k].zone(i % GW, Math.floor(i / GW)) ? p : ".");
+    if (kept.join("") !== pixels.join("")) { history.push(pixels.join("")); pixels = kept; }
+  }
+  cat = k;
+  catSelect.value = k;
+  zoneHelp.textContent = CATS[k].help;
+  changed();
+}
+
+/* ===== Drawing ===== */
+const board = document.getElementById("board"), bx = board.getContext("2d");
+let pixels = BLANK.split(""), color = 8, erasing = false, mirror = true;
+const history = [];
+const palEl = document.getElementById("palette");
+PAL.forEach((c, i) => {
+  const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.id = "pal-" + i;
+  b.style.background = c; b.title = PAL_NAMES[i]; b.setAttribute("aria-label", PAL_NAMES[i]);
+  b.addEventListener("click", () => { color = i; erasing = false; syncTools(); });
+  palEl.append(b);
+});
+const penBtn = document.getElementById("t-pen"), eraseBtn = document.getElementById("t-erase"), mirrorBtn = document.getElementById("t-mirror"),
+      undoBtn = document.getElementById("t-undo"), clearBtn = document.getElementById("t-clear");
+penBtn.addEventListener("click", () => { erasing = false; syncTools(); });
+eraseBtn.addEventListener("click", () => { erasing = true; syncTools(); });
+mirrorBtn.addEventListener("click", () => { mirror = !mirror; syncTools(); draw(); });
+undoBtn.addEventListener("click", () => { if (history.length) { pixels = history.pop().split(""); changed(); } });
+clearBtn.addEventListener("click", () => {
+  if (pixels.join("") === BLANK) return;
+  if (!clearBtn.dataset.armed) { clearBtn.dataset.armed = "1"; clearBtn.textContent = "Tap to confirm"; setTimeout(() => { delete clearBtn.dataset.armed; clearBtn.textContent = "Clear"; }, 2500); return; }
+  delete clearBtn.dataset.armed; clearBtn.textContent = "Clear";
+  history.push(pixels.join("")); pixels = BLANK.split(""); changed();
+});
+function syncTools() {
+  penBtn.setAttribute("aria-pressed", String(!erasing)); eraseBtn.setAttribute("aria-pressed", String(erasing));
+  mirrorBtn.setAttribute("aria-pressed", String(mirror));
+  [...palEl.children].forEach((b, i) => b.setAttribute("aria-pressed", String(!erasing && i === color)));
+  undoBtn.disabled = !history.length;
+}
+
+function draw() {
+  const W = board.width, H = board.height, cs = W / GW, zone = CATS[cat].zone;
+  bx.imageSmoothingEnabled = false;
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    const i = y * GW + x, inZone = zone(x, y);
+    bx.fillStyle = inZone ? ((x + y) % 2 ? "#2a2550" : "#302a5c") : "#15122a";
+    bx.fillRect(x * cs, y * cs, cs, cs);
+    if (BODY[i] !== ".") { bx.globalAlpha = inZone ? 0.28 : 0.14; bx.fillStyle = PAL[HEX.indexOf(BODY[i])]; bx.fillRect(x * cs, y * cs, cs, cs); bx.globalAlpha = 1; }
+    if (pixels[i] !== ".") { bx.fillStyle = PAL[HEX.indexOf(pixels[i])]; bx.fillRect(x * cs, y * cs, cs, cs); }
+  }
+  bx.fillStyle = "rgba(10,7,24,.6)";
+  for (let x = 1; x < GW; x++) bx.fillRect(Math.round(x * cs), 0, 1, H);
+  for (let y = 1; y < GH; y++) bx.fillRect(0, Math.round(y * cs), W, 1);
+  if (mirror) { bx.fillStyle = "rgba(255,90,168,.5)"; bx.fillRect(W / 2 - 1, 0, 2, H); }
+}
+
+const pvPiece = document.getElementById("pv-piece"), pvWorn = document.getElementById("pv-worn"), countEl = document.getElementById("count");
+let draftTimer = 0;
+function changed() {
+  draw(); syncTools();
+  const p = pixels.join("");
+  spriteCanvas(p, pvPiece); spriteCanvas(worn(p), pvWorn);
+  countEl.textContent = pixels.filter(v => v !== ".").length + " px";
+  updateSubmit();
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => { try { localStorage.setItem("pp-piece-draft", JSON.stringify({ cat, p })); } catch (e) {} }, 400);
+}
+
+function cellAt(ev) {
+  const r = board.getBoundingClientRect();
+  const x = Math.floor((ev.clientX - r.left) / r.width * GW), y = Math.floor((ev.clientY - r.top) / r.height * GH);
+  return x >= 0 && x < GW && y >= 0 && y < GH ? { x, y } : null;
+}
+function paint(x, y) {
+  const v = erasing ? "." : HEX[color], zone = CATS[cat].zone;
+  if (zone(x, y)) pixels[y * GW + x] = v;
+  const mx = GW - 1 - x;
+  if (mirror && zone(mx, y)) pixels[y * GW + mx] = v;
+}
+let down = false;
+const cursorEl = document.getElementById("cursor");
+board.addEventListener("pointerdown", ev => {
+  const c = cellAt(ev); if (!c) return;
+  ev.preventDefault(); down = true; board.setPointerCapture(ev.pointerId);
+  history.push(pixels.join("")); if (history.length > 60) history.shift();
+  paint(c.x, c.y); changed();
+});
+board.addEventListener("pointermove", ev => {
+  const c = cellAt(ev);
+  cursorEl.textContent = c ? `col ${c.x} · row ${c.y}` + (CATS[cat].zone(c.x, c.y) ? "" : " · outside zone") : " ";
+  if (down && c) { paint(c.x, c.y); changed(); }
+});
+["pointerup","pointercancel"].forEach(e => board.addEventListener(e, () => { down = false; }));
+board.addEventListener("pointerleave", () => { cursorEl.textContent = " "; });
+
+/* ===== Data ===== */
+let db = null, me = null, isEditor = false, downloads = null, localMode = false;
+let myEntry = null, showcase = new Map(), allEntries = new Map();
+const fName = document.getElementById("f-name"), fContact = document.getElementById("f-contact"), fTitle = document.getElementById("f-title"),
+      fOk = document.getElementById("f-ok"), fSend = document.getElementById("f-send"), fMsg = document.getElementById("f-msg");
+let sending = false;
+const myPieces = () => myEntry && Array.isArray(myEntry.designs) ? myEntry.designs : [];
+function updateSubmit() {
+  const n = pixels.filter(v => v !== ".").length, full = !localMode && myPieces().length >= MAX;
+  fSend.disabled = sending || !db || !me || full || n < 3 || !clean(fName.value, 16) || !clean(fTitle.value, 24) || !fOk.checked;
+  if (full) { fMsg.className = "msg"; fMsg.textContent = "You've sent 5 pieces, the maximum. Thanks for taking part!"; }
+}
+[fName, fContact, fTitle].forEach(el => el.addEventListener("input", () => { if (!sending) fMsg.textContent = ""; updateSubmit(); }));
+fOk.addEventListener("change", updateSubmit);
+
+document.getElementById("form").addEventListener("submit", async ev => {
+  ev.preventDefault(); if (fSend.disabled) return;
+  sending = true; updateSubmit(); fSend.textContent = "Sending…";
+  const piece = { id: newId(), category: cat, title: clean(fTitle.value, 24), pixels: pixels.join(""), createdAt: Date.now() };
+  const entry = { name: clean(fName.value, 16), contact: clean(fContact.value, 60), consent: true,
+    designs: localMode ? [piece] : [...myPieces(), piece].slice(-MAX), updatedAt: Date.now() };
+  try {
+    // Offline/local mode: one entry per submission so a shared device never hits the per-person cap.
+    await db.doc("entries/" + (localMode ? me + "-" + piece.id : me)).set(entry);
+    fMsg.className = "msg good"; fMsg.textContent = `Thanks! "${piece.title}" has been submitted.`;
+    fTitle.value = ""; if (localMode) { fName.value = ""; fContact.value = ""; fOk.checked = false; } history.push(pixels.join("")); pixels = BLANK.split(""); changed();
+  } catch (e) {
+    fMsg.className = "msg bad";
+    fMsg.textContent = e && e.code === "invalid_argument"
+      ? "Your account can't submit here. Ask the organiser for Contributor access to this page."
+      : "Couldn't send your piece. Check your connection and try again.";
+  } finally { sending = false; fSend.textContent = "Submit piece"; updateSubmit(); }
+});
+
+const key = (uid, id) => uid + "--" + id;
+/* ===== Review ===== */
+const queueEl = document.getElementById("queue");
+let fStatus = "all", fCat = "all";
+const catSeg = document.getElementById("f-cat");
+ORDER.forEach(k => { const b = document.createElement("button"); b.type = "button"; b.dataset.v = k; b.setAttribute("aria-pressed", "false"); b.textContent = CATS[k].label; catSeg.append(b); });
+function seg(el, set) { el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); set(b.dataset.v); renderReview(); })); }
+seg(document.getElementById("f-status"), v => fStatus = v); seg(catSeg, v => fCat = v);
+function flat() {
+  const out = [];
+  allEntries.forEach((e, uid) => (Array.isArray(e.designs) ? e.designs : []).forEach(d => {
+    if (!validPixels(d.pixels)) return;
+    out.push({ uid, d, cat: catOf(d.category), name: clean(e.name, 16), contact: clean(e.contact, 60), feat: showcase.has(key(uid, d.id)) });
+  }));
+  return out.sort((a, b) => b.d.createdAt - a.d.createdAt);
+}
+function renderReview() {
+  if (!isEditor) return;
+  const all = flat();
+  document.getElementById("s-total").textContent = all.length;
+  document.getElementById("s-people").textContent = allEntries.size;
+  document.getElementById("s-feat").textContent = showcase.size;
+  const list = all.filter(x => (fStatus === "all" || (fStatus === "feat") === x.feat) && (fCat === "all" || x.cat === fCat));
+  queueEl.replaceChildren();
+  if (!list.length) { const e = document.createElement("div"); e.className = "empty"; e.textContent = all.length ? "Nothing matches these filters." : "No submissions yet."; queueEl.append(e); return; }
+  list.forEach(x => {
+    const row = document.createElement("article"); row.className = "rv" + (x.feat ? " is-feat" : "");
+    const c = spriteCanvas(worn(x.d.pixels)); c.className = "px";
+    const body = document.createElement("div");
+    const t = document.createElement("div"); t.className = "t"; t.textContent = clean(x.d.title, 24);
+    const m1 = document.createElement("div"); m1.className = "meta"; m1.textContent = CATS[x.cat].label + " · by " + x.name + " · " + fmt(x.d.createdAt);
+    const m2 = document.createElement("div"); m2.className = "meta"; m2.textContent = x.contact ? "Contact: " + x.contact : "No contact given";
+    body.append(t, m1, m2);
+    const act = document.createElement("div"); act.className = "act";
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn" + (x.feat ? "" : " primary"); b.textContent = x.feat ? "Unfeature" : "★ Feature";
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      const ref = db.doc("showcase/" + key(x.uid, x.d.id));
+      try {
+        if (x.feat) await ref.delete();
+        else await ref.set({ by: x.uid, designId: x.d.id, category: x.cat, title: clean(x.d.title, 24), designer: x.name, pixels: x.d.pixels, featuredAt: Date.now() });
+      } catch (e) { b.disabled = false; b.textContent = "Couldn't save"; }
+    });
+    act.append(b); row.append(c, body, act); queueEl.append(row);
+  });
+}
+
+const xOut = document.getElementById("x-out"), xMsg = document.getElementById("x-msg");
+function exportJSON() {
+  const pieces = { hair: [], top: [], bottom: [], accessory: [] };
+  [...showcase.values()].filter(d => validPixels(d.pixels)).sort((a, b) => (a.featuredAt || 0) - (b.featuredAt || 0))
+    .forEach(d => pieces[catOf(d.category)].push({ id: d.designId, title: clean(d.title, 24), designer: clean(d.designer, 16), pixels: d.pixels }));
+  return JSON.stringify({ format: "pixel-parade-apparel", version: 1, width: GW, height: GH, empty: ".",
+    palette: PAL, layerOrder: ["body","bottom","top","hair","accessory"], pieces }, null, 2);
+}
+function exportCSV() {
+  // Prefix values that start like a formula (=, +, -, @) so Excel/Sheets treat them as text, not formulas.
+  const q = s => { let v = String(s); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+  const rows = [["piece","type","designer","contact","submitted"]];
+  flat().filter(x => x.feat).forEach(x => rows.push([clean(x.d.title, 24), CATS[x.cat].label, x.name, x.contact, new Date(x.d.createdAt).toISOString()]));
+  return rows.map(r => r.map(q).join(",")).join("\n");
+}
+async function copyOut(text, label) {
+  xOut.value = text; xOut.hidden = false;
+  try { await navigator.clipboard.writeText(text); xMsg.className = "msg good"; xMsg.textContent = label + " copied."; }
+  catch (e) { xOut.focus(); xOut.select(); xMsg.className = "msg"; xMsg.textContent = "Copy the selected text below."; }
+}
+document.getElementById("x-json").addEventListener("click", () => copyOut(exportJSON(), "Featured pieces"));
+document.getElementById("x-csv").addEventListener("click", () => copyOut(exportCSV(), "Contact list"));
+document.getElementById("x-dl").addEventListener("click", async () => {
+  try {
+    if (downloads) await downloads.save({ filename: "amj26-outfits.json", data: exportJSON() });
+    else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([exportJSON()], { type: "application/json" }));
+      a.download = "amj26-outfits.json"; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    xMsg.className = "msg good"; xMsg.textContent = "Saved.";
+  }
+  catch (e) { xMsg.className = "msg"; xMsg.textContent = "Download cancelled. Use Copy instead."; }
+});
+
+/* ===== Routing + organiser PIN ===== */
+// Client-side gate only: keeps the review screen out of casual view, not a real security boundary.
+const PIN_HASH = "f5095cd644fbe157a3ebc71d3e3212530f58e6d8a88c400c811314f217278c59";
+let unlocked = false;
+try { unlocked = sessionStorage.getItem("amj26-review") === "1"; } catch (e) {}
+async function sha256(t) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+const views = { submit: "view-submit", review: "view-review" };
+function route() {
+  const want = (location.hash || "").slice(1);
+  const v = want === "review" && unlocked && isEditor ? "review" : "submit";
+  Object.entries(views).forEach(([k, id]) => { document.getElementById(id).hidden = k !== v; });
+  document.getElementById("gear").hidden = v === "review";
+  if (v === "review") { renderReview(); if (db && db.refresh) db.refresh(); }
+}
+addEventListener("hashchange", route);
+const pinDlg = document.getElementById("pin-dlg"), pinIn = document.getElementById("pin-in"), pinMsg = document.getElementById("pin-msg");
+// Hidden entry: 6 quick taps on the bottom-right corner (each within 1.5s of the last).
+let gearTaps = 0, gearTimer = 0;
+document.getElementById("gear").addEventListener("click", () => {
+  clearTimeout(gearTimer);
+  gearTaps++;
+  if (gearTaps < 6) { gearTimer = setTimeout(() => { gearTaps = 0; }, 1500); return; }
+  gearTaps = 0;
+  if (unlocked) { location.hash = "review"; return; }
+  pinIn.value = ""; pinMsg.textContent = ""; pinDlg.showModal(); pinIn.focus();
+});
+document.getElementById("pin-cancel").addEventListener("click", () => pinDlg.close());
+document.getElementById("pin-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  let ok = false;
+  try { ok = (await sha256(pinIn.value.trim())) === PIN_HASH; } catch (e) { ok = pinIn.value.trim() === "2111"; }
+  if (!ok) { pinMsg.textContent = "Wrong PIN."; pinIn.select(); return; }
+  unlocked = true; try { sessionStorage.setItem("amj26-review", "1"); } catch (e) {}
+  pinDlg.close(); location.hash = "review"; route();
+});
+document.getElementById("rv-back").addEventListener("click", ev => { ev.preventDefault(); window.history.replaceState(null, "", location.pathname + location.search); route(); });
+document.getElementById("rv-lock").addEventListener("click", () => {
+  unlocked = false; try { sessionStorage.removeItem("amj26-review"); } catch (e) {}
+  window.history.replaceState(null, "", location.pathname + location.search); route();
+});
+
+/* ===== Boot ===== */
+// Google Apps Script web app URL (see apps-script/Code.gs). Empty = save on this device only.
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbyc3FxPdY9vkY0hP1w8zT7olzf4S1g1NtvLjg_QtI4lWknlPK1StzHmT-i4JLLZcn8k/exec";
+const ADMIN_KEY_STORE = "amj26-admin-key";
+const keyBox = document.getElementById("key-box"), keyIn = document.getElementById("key-in"), keyMsg = document.getElementById("key-msg");
+
+function makeSheetDb(url) {
+  let adminKey = "";
+  try { adminKey = localStorage.getItem(ADMIN_KEY_STORE) || ""; } catch (e) {}
+  const subs = { entries: new Set(), showcase: new Set() };
+  let rows = [], loading = false;
+  const call = async (body) => {
+    // text/plain keeps this a "simple" request, so the browser skips the CORS preflight Apps Script can't answer.
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!j.ok) { const err = new Error(j.error || "failed"); err.code = j.error; throw err; }
+    return j;
+  };
+  const emit = () => {
+    const entries = rows.map(d => ({ id: "row-" + d.id, data: () => ({ name: d.name, contact: d.contact,
+      designs: [{ id: d.id, category: d.category, title: d.title, pixels: d.pixels, createdAt: d.createdAt }] }) }));
+    const featured = rows.filter(d => d.featured).map(d => ({ id: "row-" + d.id + "--" + d.id, data: () => ({ by: "row-" + d.id, designId: d.id,
+      category: d.category, title: d.title, designer: d.name, pixels: d.pixels, featuredAt: d.createdAt }) }));
+    subs.entries.forEach(cb => cb({ metadata: { fromCache: false }, docs: entries }));
+    subs.showcase.forEach(cb => cb({ metadata: { fromCache: false }, docs: featured }));
+  };
+  const showKeyBox = (msg) => { keyBox.hidden = false; keyMsg.textContent = msg || ""; };
+  async function refresh() {
+    if (!adminKey) { showKeyBox(); return; }
+    if (loading) return; loading = true;
+    try {
+      const r = await fetch(url + "?key=" + encodeURIComponent(adminKey));
+      const j = await r.json();
+      if (!j.ok) { if (j.error === "unauthorized") showKeyBox("That key didn't work."); else say("Couldn't load entries from the sheet."); return; }
+      keyBox.hidden = true; say("");
+      rows = (j.entries || []).filter(d => validPixels(d.pixels) && CATS[d.category]);
+      emit();
+    } catch (e) { say("Couldn't reach the Google Sheet. Check your connection and press Refresh."); }
+    finally { loading = false; }
+  }
+  keyBox.addEventListener("submit", ev => {
+    ev.preventDefault();
+    adminKey = keyIn.value.trim(); keyIn.value = "";
+    try { localStorage.setItem(ADMIN_KEY_STORE, adminKey); } catch (e) {}
+    refresh();
+  });
+  document.getElementById("rv-lock").addEventListener("click", () => {
+    adminKey = ""; rows = []; emit();
+    try { localStorage.removeItem(ADMIN_KEY_STORE); } catch (e) {}
+  });
+  const setFeatured = async (path, on) => {
+    const id = path.split("--").pop();
+    await call({ action: "feature", key: adminKey, id, featured: on });
+    await refresh();
+  };
+  return {
+    refresh,
+    doc(path) {
+      const [collection, id] = path.split("/");
+      return {
+        async set(data) {
+          if (collection === "showcase") return setFeatured(id, true);
+          const d = data.designs[0];
+          await call({ action: "submit", id: d.id, name: data.name, contact: data.contact, consent: data.consent === true,
+            category: d.category, title: d.title, pixels: d.pixels });
+        },
+        async delete() { if (collection === "showcase") return setFeatured(id, false); },
+        onSnapshot(cb) { cb({ exists: false, metadata: { fromCache: false }, data: () => null, id }); return () => {}; },
+      };
+    },
+    collection(name) {
+      return { onSnapshot(cb) { (subs[name] || new Set()).add(cb); return () => subs[name].delete(cb); } };
+    },
+  };
+}
+
+function makeLocalDb() {
+  const key = "pixel-parade-local-store";
+  const read = () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || "{}");
+      return {
+        entries: raw.entries || {},
+        showcase: raw.showcase || {}
+      };
+    } catch (e) {
+      return { entries: {}, showcase: {} };
+    }
+  };
+  const listeners = new Set();
+  const write = (store) => {
+    try { localStorage.setItem(key, JSON.stringify(store)); } catch (e) {}
+    listeners.forEach(fn => fn());
+  };
+  addEventListener("storage", e => { if (e.key === key) listeners.forEach(fn => fn()); });
+
+  return {
+    doc(path) {
+      const [collection, id] = path.split("/");
+      return {
+        async set(data) {
+          const store = read();
+          if (!store[collection]) store[collection] = {};
+          store[collection][id] = data;
+          write(store);
+        },
+        async delete() {
+          const store = read();
+          if (store[collection]) delete store[collection][id];
+          write(store);
+        },
+        onSnapshot(cb) {
+          const emit = () => {
+            const store = read();
+            const data = store[collection] && store[collection][id] ? store[collection][id] : null;
+            cb({ exists: !!data, metadata: { fromCache: false }, data: () => data, id });
+          };
+          emit(); listeners.add(emit);
+          return () => listeners.delete(emit);
+        }
+      };
+    },
+    collection(name) {
+      return {
+        onSnapshot(cb) {
+          const emit = () => {
+            const store = read();
+            const docs = Object.entries(store[name] || {}).map(([id, data]) => ({
+              id,
+              data: () => data
+            }));
+            cb({ metadata: { fromCache: false }, docs });
+          };
+          emit(); listeners.add(emit);
+          return () => listeners.delete(emit);
+        }
+      };
+    }
+  };
+}
+
+async function init() {
+  let user = null;
+  try {
+    if (window.claude && typeof window.claude.use === "function")
+      [db, user, downloads] = await Promise.all([window.claude.use("db"), window.claude.use("user"), window.claude.use("downloads")]);
+  } catch (e) {}
+  if ((!db || !user) && SHEET_URL) {
+    db = makeSheetDb(SHEET_URL);
+    user = { id: async () => "web", canEdit: async () => true };
+    localMode = true; // one row per submission, no per-person cap
+    downloads = null;
+  }
+  if (!db || !user) {
+    db = makeLocalDb();
+    user = { id: async () => "local-user", canEdit: async () => true };
+    localMode = true;
+    downloads = null;
+  }
+  me = await user.id(); isEditor = await user.canEdit();
+  route();
+  const slow = SHEET_URL ? 0 : setTimeout(() => say("Can't reach submissions yet. This page keeps trying."), 10000);
+  const ok = () => { clearTimeout(slow); if (notice.textContent.startsWith("Can't reach")) say(""); };
+  db.collection("showcase").onSnapshot(s => { if (!s.metadata.fromCache) ok(); showcase = new Map(s.docs.map(d => [d.id, d.data()])); renderReview(); },
+    () => say("The showcase feed stopped. Reload the page to reconnect."));
+  if (me && !localMode) db.doc("entries/" + me).onSnapshot(s => {
+    if (!s.metadata.fromCache) ok();
+    myEntry = s.exists ? s.data() : null;
+    if (myEntry && !fName.value) fName.value = clean(myEntry.name, 16);
+    if (myEntry && !fContact.value) fContact.value = clean(myEntry.contact, 60);
+    updateSubmit();
+  }, () => {});
+  if (isEditor) db.collection("entries").onSnapshot(s => { allEntries = new Map(s.docs.map(d => [d.id, d.data()])); renderReview(); },
+    () => say("The review feed stopped. Reload the page to reconnect."));
+  updateSubmit();
+}
+
+try {
+  const d = JSON.parse(localStorage.getItem("pp-piece-draft") || "null");
+  if (d && CATS[d.cat] && validPixels(d.p)) { cat = d.cat; pixels = d.p.split(""); }
+} catch (e) {}
+setCat(cat); route();
+init();
+})();
+</script>
+
+</body></html>

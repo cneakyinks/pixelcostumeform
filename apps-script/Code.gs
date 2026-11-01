@@ -4,7 +4,7 @@
  * Paste into the sheet's Extensions → Apps Script editor, then:
  *   1. Project Settings → Script Properties → add ADMIN_KEY = <your private key, 12+ characters>.
  *   2. Deploy → New deployment → Web app → Execute as: Me, Who has access: Anyone.
- *   3. Put the web app URL into SHEET_URL in pixelcostumeform.html.
+ *   3. Put the web app URL into SHEET_URL in index.html.
  *
  * Anyone can submit a piece (POST action "submit").
  * Reading entries (GET) and featuring (POST action "feature") need ADMIN_KEY,
