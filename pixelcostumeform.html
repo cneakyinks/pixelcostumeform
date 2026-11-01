@@ -120,9 +120,9 @@ form.panel { display: grid; gap: 28px; }
 .rv.is-feat { border-color: var(--feat); }
 .copy-out { width: 100%; min-height: 120px; margin-bottom: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
 
-/* organiser gear + PIN */
-.gear { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); opacity: .18; transition: opacity .2s; }
-.gear:hover, .gear:focus-visible { opacity: .7; }
+/* organiser access: invisible corner hotspot (tap 6 times) + PIN */
+.gear { position: fixed; right: 0; bottom: 0; width: 64px; height: 64px; padding: 0; border: 0; background: transparent; opacity: 0; cursor: default; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.gear:focus, .gear:focus-visible { outline: none; }
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 20px; width: min(320px, calc(100vw - 32px)); }
 dialog::backdrop { background: rgba(10,7,24,.55); }
 dialog form { display: grid; gap: 12px; }
@@ -249,9 +249,7 @@ dialog .msg:empty { display: none; }
   </section>
 </div>
 
-<button type="button" class="gear" id="gear" aria-label="Organiser settings" title="Organiser">
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-</button>
+<button type="button" class="gear" id="gear" tabindex="-1" aria-hidden="true"></button>
 <dialog id="pin-dlg" aria-labelledby="pin-h">
   <form id="pin-form" method="dialog">
     <h2 id="pin-h">Organiser access</h2>
@@ -547,7 +545,13 @@ function route() {
 }
 addEventListener("hashchange", route);
 const pinDlg = document.getElementById("pin-dlg"), pinIn = document.getElementById("pin-in"), pinMsg = document.getElementById("pin-msg");
+// Hidden entry: 6 quick taps on the bottom-right corner (each within 1.5s of the last).
+let gearTaps = 0, gearTimer = 0;
 document.getElementById("gear").addEventListener("click", () => {
+  clearTimeout(gearTimer);
+  gearTaps++;
+  if (gearTaps < 6) { gearTimer = setTimeout(() => { gearTaps = 0; }, 1500); return; }
+  gearTaps = 0;
   if (unlocked) { location.hash = "review"; return; }
   pinIn.value = ""; pinMsg.textContent = ""; pinDlg.showModal(); pinIn.focus();
 });
