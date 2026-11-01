@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:dark;background:#0f0e0e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0f0e0e;color:#f3efe8}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>AMJ26 pixel form</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -6,33 +6,22 @@
 <style>
 /* Layout: one narrow centred column. A plain form with numbered steps (they are a real sequence), a compact drawing block inside step 3, then "your submissions". Showcase and Review are simple secondary views via hash tabs. */
 :root {
-  --bg: #f6f5fb;
-  --surface: #ffffff;
-  --ink: #1d1a33;
-  --muted: #625d80;
-  --line: #dcd8ec;
-  --accent: #d6267f;
-  --accent-ink: #ffffff;
-  --feat: #a86a00;
-  --feat-bg: #fff2cc;
-  --good: #1f7a3a;
-  --bad: #b3261e;
-  --grid-a: #eeecf6;
-  --grid-b: #e6e3f2;
+  /* page background matches the logo's own background so the logo sits seamlessly */
+  --bg: #0f0e0e;
+  --surface: #191717;
+  --field: #0f0e0e;
+  --ink: #f3efe8;
+  --muted: #a8a19a;
+  --line: #2f2b2b;
+  --accent: #ff5aa8;
+  --accent-ink: #0f0e0e;
+  --feat: #ffd56b;
+  --feat-bg: #3a2f10;
+  --good: #7fdc95;
+  --bad: #ff8a80;
   --font: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mark: "Press Start 2P", "Courier New", monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #12101f; --surface: #1c1930; --ink: #f1eff9; --muted: #a9a3c8; --line: #34304f;
-    --accent: #ff5aa8; --accent-ink: #12101f; --feat: #ffd56b; --feat-bg: #3a2f10; --good: #7fdc95; --bad: #ff8a80;
-    --grid-a: #221e38; --grid-b: #1a172d; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #12101f; --surface: #1c1930; --ink: #f1eff9; --muted: #a9a3c8; --line: #34304f;
-  --accent: #ff5aa8; --accent-ink: #12101f; --feat: #ffd56b; --feat-bg: #3a2f10; --good: #7fdc95; --bad: #ff8a80;
-  --grid-a: #221e38; --grid-b: #1a172d; color-scheme: dark;
+  color-scheme: dark;
 }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; }
 *, *::before, *::after { box-sizing: inherit; }
@@ -48,8 +37,7 @@ canvas.px { image-rendering: pixelated; image-rendering: crisp-edges; }
 }
 header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 28px; }
 .brand-wrap { display: grid; gap: 10px; align-items: center; justify-items: start; }
-.brand-logo { display: block; width: min(100%, 440px); height: auto; border-radius: 10px; box-shadow: 0 8px 18px rgba(0,0,0,.15); }
-.brand-name { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.brand-logo { display: block; width: min(100%, 480px); height: auto; }
 .tabs { display: flex; gap: 4px; }
 @media (max-width: 620px) {
   header.top { align-items: flex-start; }
@@ -74,7 +62,7 @@ form.panel { display: grid; gap: 28px; }
 @media (max-width: 560px) { .row { grid-template-columns: minmax(0,1fr); } }
 .field { display: grid; gap: 4px; min-width: 0; }
 .field label { font-weight: 500; font-size: 14px; min-height: 21px; display: flex; align-items: flex-end; flex-wrap: wrap; gap: 2px; }
-.field input[type=text], .field select { width: 100%; min-height: 44px; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.field input[type=text], .field select { width: 100%; min-height: 44px; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); }
 .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
 .help { color: var(--muted); font-size: 13px; }
 
@@ -111,14 +99,7 @@ form.panel { display: grid; gap: 28px; }
 .msg { font-size: 15px; }
 .msg.good { color: var(--good); } .msg.bad { color: var(--bad); }
 
-.section-h { font-size: 18px; margin: 36px 0 12px; }
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.item { display: grid; grid-template-columns: 40px minmax(0,1fr) auto auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
-.item canvas { width: 28px; height: 46px; background: #1a1538; border-radius: 4px; padding: 3px; box-sizing: content-box; }
-.item .t { font-weight: 600; overflow-wrap: anywhere; }
-.item .s { color: var(--muted); font-size: 13px; }
-.chip { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
-.chip.feat { background: var(--feat-bg); color: var(--feat); border-color: transparent; }
+.list { display: grid; gap: 8px; }
 .link-btn { background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 14px; padding: 4px; }
 .link-btn.armed { color: var(--bad); }
 .empty { color: var(--muted); padding: 14px; border: 1px dashed var(--line); border-radius: 8px; }
@@ -164,9 +145,6 @@ dialog .msg:empty { display: none; }
   .palette { grid-template-columns: repeat(8, minmax(0, 1fr)); }
   .preview { justify-content: center; }
   .submit-row .btn { width: 100%; }
-  .item { grid-template-columns: 40px minmax(0,1fr) auto; row-gap: 6px; }
-  .item > :last-child { grid-column: 2 / -1; justify-self: start; }
-  .item > :last-child:empty { display: none; }
   .bar .btn { flex: 1 1 auto; }
   .seg { flex-wrap: wrap; }
 }
@@ -176,7 +154,6 @@ dialog .msg:empty { display: none; }
   <header class="top">
     <div class="brand-wrap" aria-label="AMJ26 pixel form">
       <img src="amj26-logo.png" alt="Marsiling's Arts &amp; Music Jam 2026" class="brand-logo" width="968" height="318">
-      <div class="brand-name">AMJ26 pixel form</div>
     </div>
   </header>
 
@@ -185,7 +162,7 @@ dialog .msg:empty { display: none; }
   <!-- ============ SUBMIT ============ -->
   <section id="view-submit">
     <h1>Costume Call: design a piece for the stage</h1>
-    <p class="lede">Draw one piece of 8-bit apparel: a hairstyle, a top, bottoms or an accessory. Featured pieces become options guests can wear on the AMJ26 big screen.</p>
+    <p class="lede">Draw one piece of 8-bit apparel: a hairstyle, a top, bottoms or an accessory. Featured pieces become options guests can wear on their avatar.</p>
 
     <form class="panel" id="form" autocomplete="off">
       <div class="step">
@@ -240,8 +217,6 @@ dialog .msg:empty { display: none; }
       </div>
     </form>
 
-    <h2 class="section-h">Your submissions</h2>
-    <ul class="list" id="mine"><li class="empty">Nothing submitted yet. You can send up to 5 pieces.</li></ul>
   </section>
 
   <!-- ============ REVIEW ============ -->
@@ -446,16 +421,16 @@ board.addEventListener("pointermove", ev => {
 board.addEventListener("pointerleave", () => { cursorEl.textContent = " "; });
 
 /* ===== Data ===== */
-let db = null, me = null, isEditor = false, downloads = null;
+let db = null, me = null, isEditor = false, downloads = null, localMode = false;
 let myEntry = null, showcase = new Map(), allEntries = new Map();
 const fName = document.getElementById("f-name"), fContact = document.getElementById("f-contact"), fTitle = document.getElementById("f-title"),
       fOk = document.getElementById("f-ok"), fSend = document.getElementById("f-send"), fMsg = document.getElementById("f-msg");
 let sending = false;
 const myPieces = () => myEntry && Array.isArray(myEntry.designs) ? myEntry.designs : [];
 function updateSubmit() {
-  const n = pixels.filter(v => v !== ".").length, full = myPieces().length >= MAX;
+  const n = pixels.filter(v => v !== ".").length, full = !localMode && myPieces().length >= MAX;
   fSend.disabled = sending || !db || !me || full || n < 3 || !clean(fName.value, 16) || !clean(fTitle.value, 24) || !fOk.checked;
-  if (full) { fMsg.className = "msg"; fMsg.textContent = "You've sent 5 pieces, the maximum. Withdraw one to send another."; }
+  if (full) { fMsg.className = "msg"; fMsg.textContent = "You've sent 5 pieces, the maximum. Thanks for taking part!"; }
 }
 [fName, fContact, fTitle].forEach(el => el.addEventListener("input", () => { if (!sending) fMsg.textContent = ""; updateSubmit(); }));
 fOk.addEventListener("change", updateSubmit);
@@ -465,11 +440,12 @@ document.getElementById("form").addEventListener("submit", async ev => {
   sending = true; updateSubmit(); fSend.textContent = "Sending…";
   const piece = { id: newId(), category: cat, title: clean(fTitle.value, 24), pixels: pixels.join(""), createdAt: Date.now() };
   const entry = { name: clean(fName.value, 16), contact: clean(fContact.value, 60), consent: true,
-    designs: [...myPieces(), piece].slice(-MAX), updatedAt: Date.now() };
+    designs: localMode ? [piece] : [...myPieces(), piece].slice(-MAX), updatedAt: Date.now() };
   try {
-    await db.doc("entries/" + me).set(entry);
-    fMsg.className = "msg good"; fMsg.textContent = `Sent. "${piece.title}" is in review — check back here to see if it's featured.`;
-    fTitle.value = ""; history.push(pixels.join("")); pixels = BLANK.split(""); changed();
+    // Offline/local mode: one entry per submission so a shared device never hits the per-person cap.
+    await db.doc("entries/" + (localMode ? me + "-" + piece.id : me)).set(entry);
+    fMsg.className = "msg good"; fMsg.textContent = `Thanks! "${piece.title}" has been submitted.`;
+    fTitle.value = ""; if (localMode) { fName.value = ""; fContact.value = ""; fOk.checked = false; } history.push(pixels.join("")); pixels = BLANK.split(""); changed();
   } catch (e) {
     fMsg.className = "msg bad";
     fMsg.textContent = e && e.code === "invalid_argument"
@@ -479,35 +455,6 @@ document.getElementById("form").addEventListener("submit", async ev => {
 });
 
 const key = (uid, id) => uid + "--" + id;
-const mineEl = document.getElementById("mine");
-function renderMine() {
-  mineEl.replaceChildren();
-  const list = myPieces().slice().sort((a, b) => b.createdAt - a.createdAt);
-  if (!list.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = db ? "Nothing submitted yet. You can send up to 5 pieces." : "Sign in to claude.ai with access to this page to submit and track pieces."; mineEl.append(li); return; }
-  list.forEach(d => {
-    const li = document.createElement("li"); li.className = "item";
-    const c = spriteCanvas(worn(d.pixels)); c.className = "px";
-    const info = document.createElement("div");
-    const t = document.createElement("div"); t.className = "t"; t.textContent = d.title;
-    const s = document.createElement("div"); s.className = "s"; s.textContent = CATS[catOf(d.category)].label + " · sent " + fmt(d.createdAt);
-    info.append(t, s);
-    const feat = showcase.has(key(me, d.id));
-    const chip = document.createElement("span"); chip.className = "chip" + (feat ? " feat" : ""); chip.textContent = feat ? "★ Featured" : "In review";
-    const act = document.createElement("span");
-    if (!feat) {
-      const w = document.createElement("button"); w.type = "button"; w.className = "link-btn"; w.textContent = "Withdraw";
-      w.addEventListener("click", async () => {
-        if (!w.classList.contains("armed")) { w.classList.add("armed"); w.textContent = "Confirm withdraw"; setTimeout(() => { w.classList.remove("armed"); w.textContent = "Withdraw"; }, 3000); return; }
-        w.disabled = true;
-        try { await db.doc("entries/" + me).set({ ...myEntry, designs: myPieces().filter(x => x.id !== d.id), updatedAt: Date.now() }); }
-        catch (e) { w.disabled = false; w.textContent = "Try again"; }
-      });
-      act.append(w);
-    }
-    li.append(c, info, chip, act); mineEl.append(li);
-  });
-}
-
 /* ===== Review ===== */
 const queueEl = document.getElementById("queue");
 let fStatus = "all", fCat = "all";
@@ -693,6 +640,7 @@ async function init() {
   if (!db || !user) {
     db = makeLocalDb();
     user = { id: async () => "local-user", canEdit: async () => true };
+    localMode = true;
     downloads = null;
   }
   me = await user.id(); isEditor = await user.canEdit();
@@ -700,14 +648,14 @@ async function init() {
   route();
   const slow = setTimeout(() => say("Can't reach submissions yet. This page keeps trying."), 10000);
   const ok = () => { clearTimeout(slow); if (notice.textContent.startsWith("Can't reach")) say(""); };
-  db.collection("showcase").onSnapshot(s => { if (!s.metadata.fromCache) ok(); showcase = new Map(s.docs.map(d => [d.id, d.data()])); renderMine(); renderReview(); },
+  db.collection("showcase").onSnapshot(s => { if (!s.metadata.fromCache) ok(); showcase = new Map(s.docs.map(d => [d.id, d.data()])); renderReview(); },
     () => say("The showcase feed stopped. Reload the page to reconnect."));
-  if (me) db.doc("entries/" + me).onSnapshot(s => {
+  if (me && !localMode) db.doc("entries/" + me).onSnapshot(s => {
     if (!s.metadata.fromCache) ok();
     myEntry = s.exists ? s.data() : null;
     if (myEntry && !fName.value) fName.value = clean(myEntry.name, 16);
     if (myEntry && !fContact.value) fContact.value = clean(myEntry.contact, 60);
-    renderMine(); updateSubmit();
+    updateSubmit();
   }, () => {});
   if (isEditor) db.collection("entries").onSnapshot(s => { allEntries = new Map(s.docs.map(d => [d.id, d.data()])); renderReview(); },
     () => say("The review feed stopped. Reload the page to reconnect."));
@@ -718,7 +666,7 @@ try {
   const d = JSON.parse(localStorage.getItem("pp-piece-draft") || "null");
   if (d && CATS[d.cat] && validPixels(d.p)) { cat = d.cat; pixels = d.p.split(""); }
 } catch (e) {}
-setCat(cat); route(); renderMine();
+setCat(cat); route();
 init();
 })();
 </script>
