@@ -9,6 +9,14 @@
  * Anyone can submit a piece (POST action "submit").
  * Reading entries (GET) and featuring (POST action "feature") need ADMIN_KEY,
  * so contact details are never readable from the public page.
+ *
+ * Live @ Arts & Music Jam (public, no key, never returns contacts):
+ *   GET  ?action=pieces          featured pieces for the live stage
+ *   GET  ?action=fans&since=ms   station characters (+ ids removed since)
+ *   POST {action:"fan"}          add a station character -> {id, token}
+ *   POST {action:"removeFan"}    remove one with its token (or ADMIN_KEY)
+ * After editing, redeploy: Deploy -> Manage deployments -> Edit -> New version
+ * (keeps the same /exec URL).
  * Never commit the real ADMIN_KEY to the repo.
  */
 
@@ -27,6 +35,73 @@ function sheet_() {
     sh.getRange("I2:I").insertCheckboxes();
   }
   return sh;
+}
+
+const FAN_SHEET = "Fans";
+const FAN_HEAD = ["created_at", "id", "name", "look_json", "token", "removed_at"];
+const LOOK_KEYS = ["skin", "hair", "shirt", "pants", "acc", "hairStyle", "outfit", "bottom", "gear"];
+const MAX_FANS = 2000;
+
+function fanSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(FAN_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(FAN_SHEET);
+    sh.appendRow(FAN_HEAD);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// Keep only the expected keys, as small ints or short id strings. The stage re-checks everything.
+function cleanLook_(l) {
+  if (!l || typeof l !== "object") return null;
+  const out = {};
+  for (let i = 0; i < LOOK_KEYS.length; i++) {
+    const k = LOOK_KEYS[i], v = l[k];
+    if (typeof v === "number" && v >= 0 && v < 64 && Math.floor(v) === v) out[k] = v;
+    else if (typeof v === "string" && /^[a-z0-9:]{1,30}$/i.test(v)) out[k] = v;
+  }
+  return out;
+}
+
+function ms_(v) { return v instanceof Date ? v.getTime() : (Number(v) || Date.parse(v) || 0); }
+
+function publicPieces_() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get("pieces");
+  if (hit) return hit;
+  const sh = sheet_(), n = sh.getLastRow() - 1;
+  const pieces = [];
+  if (n >= 1) {
+    sh.getRange(2, 1, n, HEAD.length).getValues().forEach(r => {
+      const on = r[8] === true || String(r[8]).toUpperCase() === "TRUE";
+      if (!on || !r[1]) return;
+      pieces.push({ id: String(r[1]), title: String(r[5]), designer: String(r[2]), category: String(r[4]),
+        pixels: String(r[6]), createdAt: ms_(r[0]) });
+    });
+  }
+  const out = JSON.stringify({ ok: true, pieces: pieces });
+  try { cache.put("pieces", out, 10); } catch (x) {}
+  return out;
+}
+
+function publicFans_(since) {
+  const now = Date.now(); // taken before reading so rows added mid-read are caught next poll
+  const sh = fanSheet_(), n = sh.getLastRow() - 1;
+  const fans = [], removed = [];
+  if (n >= 1) {
+    sh.getRange(2, 1, n, FAN_HEAD.length).getValues().forEach(r => {
+      if (!r[1]) return;
+      const id = String(r[1]), created = ms_(r[0]), gone = ms_(r[5]);
+      if (gone) { if (gone > since) removed.push(id); return; }
+      if (created <= since) return;
+      let look = {};
+      try { look = JSON.parse(String(r[3])); } catch (x) {}
+      fans.push({ id: id, name: String(r[2]), look: look, createdAt: created });
+    });
+  }
+  return { ok: true, now: now, fans: fans, removed: removed };
 }
 
 function json_(o) {
@@ -71,6 +146,39 @@ function doPost(e) {
     return json_({ ok: true, id: id });
   }
 
+  if (b.action === "fan") {
+    const name = String(b.name || "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim().slice(0, 12);
+    const look = cleanLook_(b.look);
+    if (!name || !look) return json_({ ok: false, error: "invalid" });
+    const id = Utilities.getUuid().replace(/-/g, "").slice(0, 16);
+    const token = Utilities.getUuid().replace(/-/g, "");
+    const now = Date.now();
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      const sh = fanSheet_();
+      if (sh.getLastRow() - 1 >= MAX_FANS) return json_({ ok: false, error: "quota_exceeded" });
+      sh.appendRow([now, text_(id), text_(name), text_(JSON.stringify(look)), text_(token), ""]);
+    } finally {
+      lock.releaseLock();
+    }
+    return json_({ ok: true, id: id, token: token, createdAt: now });
+  }
+
+  if (b.action === "removeFan") {
+    const sh = fanSheet_(), n = sh.getLastRow() - 1;
+    if (n < 1) return json_({ ok: false, error: "not_found" });
+    const rows = sh.getRange(2, 2, n, 4).getValues(); // id, name, look, token
+    for (let i = 0; i < n; i++) {
+      if (String(rows[i][0]) !== String(b.id)) continue;
+      const tokenOk = typeof b.token === "string" && b.token.length >= 16 && b.token === String(rows[i][3]);
+      if (!tokenOk && !authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
+      sh.getRange(i + 2, 6).setValue(Date.now());
+      return json_({ ok: true });
+    }
+    return json_({ ok: false, error: "not_found" });
+  }
+
   if (b.action === "feature") {
     if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
     const sh = sheet_(), n = sh.getLastRow() - 1;
@@ -79,6 +187,7 @@ function doPost(e) {
     for (let i = 0; i < n; i++) {
       if (String(ids[i][0]) === String(b.id)) {
         sh.getRange(i + 2, 9).setValue(b.featured === true);
+        try { CacheService.getScriptCache().remove("pieces"); } catch (x) {}
         return json_({ ok: true });
       }
     }
@@ -89,6 +198,9 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  const action = e.parameter.action;
+  if (action === "pieces") return ContentService.createTextOutput(publicPieces_()).setMimeType(ContentService.MimeType.JSON);
+  if (action === "fans") return json_(publicFans_(Number(e.parameter.since) || 0));
   if (!authed_(e.parameter.key)) return json_({ ok: false, error: "unauthorized" });
   const sh = sheet_(), n = sh.getLastRow() - 1;
   if (n < 1) return json_({ ok: true, entries: [] });
