@@ -31,6 +31,7 @@
  *   GET  ?action=moments         approved moments for the stage banner (Drive image links)
  * Crew (ADMIN_KEY): queue also returns outfit changes + moments waiting;
  *   POST {action:"reviewChange"} / {action:"reviewMoment"}  {id, approve}
+ *   POST {action:"sendBack"} {id}   takes an approved fan off stage and back into the queue
  *   GET  ?action=momentsAdmin&key   approved moments with thumbnails
  * Photos go to a private Drive folder "AMJ26 Moments" and are only shared (anyone with the link) once approved.
  * Moments need Drive access: run setupPermissions once from the editor, then redeploy.
@@ -139,8 +140,10 @@ function publicFans_(since) {
   const now = Date.now(); // taken before reading so rows added mid-read are caught next poll
   const fans = [], removed = [];
   fanRows_(fanSheet_()).forEach(r => {
-    if (!r[F.id] || statusOf_(r) !== "approved") return;
+    if (!r[F.id]) return;
     const gone = ms_(r[F.removed]);
+    // sent back to the queue by the crew: take them off the stage until approved again
+    if (statusOf_(r) !== "approved") { if (!gone && ms_(r[F.updated]) > since) removed.push(String(r[F.id])); return; }
     if (gone) { if (gone > since) removed.push(String(r[F.id])); return; }
     const f = fanOut_(r);
     if (f.shownAt > since || f.updatedAt > since) fans.push(f);
@@ -440,6 +443,21 @@ function handlePost_(e) {
       if (!hit || statusOf_(hit.r) !== "pending") return json_({ ok: false, error: "not_found" });
       const ok = b.approve === true;
       sh.getRange(hit.row, F.status + 1, 1, 2).setValues([[ok ? "approved" : "rejected", ok ? Date.now() : ""]]);
+    } finally {
+      lock.releaseLock();
+    }
+    return json_({ ok: true });
+  }
+
+  if (b.action === "sendBack") {
+    if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      const sh = fanSheet_(), hit = findFan_(sh, b.id);
+      if (!hit || ms_(hit.r[F.removed]) || statusOf_(hit.r) !== "approved") return json_({ ok: false, error: "not_found" });
+      sh.getRange(hit.row, F.status + 1, 1, 2).setValues([["pending", ""]]);
+      sh.getRange(hit.row, F.updated + 1).setValue(Date.now());
     } finally {
       lock.releaseLock();
     }
