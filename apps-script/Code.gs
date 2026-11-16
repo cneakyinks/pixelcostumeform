@@ -31,6 +31,7 @@
  *   GET  ?action=moments         approved moments for the stage banner (Drive image links)
  * Crew (ADMIN_KEY): queue also returns outfit changes + moments waiting;
  *   POST {action:"reviewChange"} / {action:"reviewMoment"}  {id, approve}
+ *   POST {action:"saveMoments"} {items:[{id, do:"approve"|"reject"|"crop"|"remove", crop}]}   one guest's banner in one go
  *   POST {action:"cropMoment"} {id, crop:{x,y,z}}   how a photo sits in its banner panel (also sent with reviewMoment)
  *   POST {action:"sendBack"} {id}   takes an approved fan off stage and back into the queue
  *   GET  ?action=momentsAdmin&key   approved moments with thumbnails
@@ -234,7 +235,7 @@ function publicMoments_() {
   const live = {};
   fanRows_(fanSheet_()).forEach(r => { if (r[F.id] && statusOf_(r) === "approved" && !ms_(r[F.removed])) live[String(r[F.id])] = true; });
   const list = momRows_(momSheet_()).filter(r => r[M.id] && r[M.status] === "approved" && !ms_(r[M.removed]) && live[String(r[M.fan])])
-    .map(r => ({ id: String(r[M.id]), fanId: String(r[M.fan]), url: momUrl_(String(r[M.file])), shownAt: ms_(r[M.shown]), crop: cropOut_(r[M.crop]) }));
+    .map(r => ({ id: String(r[M.id]), fanId: String(r[M.fan]), url: momUrl_(String(r[M.file])), shownAt: ms_(r[M.shown]), createdAt: ms_(r[M.created]), crop: cropOut_(r[M.crop]) }));
   const out = JSON.stringify({ ok: true, moments: list });
   try { cache.put("moments", out, 10); } catch (x) {}
   return out;
@@ -410,6 +411,42 @@ function handlePost_(e) {
       lock.releaseLock();
     }
     return json_({ ok: true, id: id });
+  }
+
+  // crew saves one guest's whole banner at once: each item {id, do: "approve" | "reject" | "crop" | "remove", crop}
+  if (b.action === "saveMoments") {
+    if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
+    const items = Array.isArray(b.items) ? b.items.slice(0, MOM_PER_FAN + 3) : [];
+    if (!items.length) return json_({ ok: false, error: "invalid" });
+    const lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    const done = [];
+    try {
+      const sh = momSheet_(), rows = momRows_(sh), now = Date.now();
+      items.forEach((it, n) => {
+        let i = -1;
+        for (let k = 0; k < rows.length; k++) if (String(rows[k][M.id]) === String(it && it.id)) { i = k; break; }
+        if (i < 0 || ms_(rows[i][M.removed])) return;
+        const r = rows[i], row = i + 2, crop = cleanCrop_(it.crop), st = String(r[M.status]);
+        if (it.do === "approve" && st === "pending") {
+          DriveApp.getFileById(String(r[M.file])).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          sh.getRange(row, M.status + 1).setValue("approved");
+          sh.getRange(row, M.shown + 1).setValue(now + n);
+          if (crop) sh.getRange(row, M.crop + 1).setValue(text_(crop));
+        } else if (it.do === "reject" && st === "pending") {
+          sh.getRange(row, M.status + 1).setValue("rejected"); trash_(r[M.file]);
+        } else if (it.do === "remove") {
+          sh.getRange(row, M.removed + 1).setValue(now); trash_(r[M.file]);
+        } else if (it.do === "crop" && crop) {
+          sh.getRange(row, M.crop + 1).setValue(text_(crop));
+        } else return;
+        done.push(String(it.id));
+      });
+    } finally {
+      lock.releaseLock();
+    }
+    try { CacheService.getScriptCache().remove("moments"); } catch (x) {}
+    return json_({ ok: true, done: done });
   }
 
   if (b.action === "removeMoment" || b.action === "reviewMoment" || b.action === "cropMoment") {
