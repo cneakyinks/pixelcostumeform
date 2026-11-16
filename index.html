@@ -622,7 +622,8 @@ function makeSheetDb(url) {
     if (!adminKey) { showKeyBox(); return; }
     if (loading) return; loading = true;
     try {
-      const r = await fetch(url + "?key=" + encodeURIComponent(adminKey));
+      // POST so the key never ends up in a URL (browser history, server logs)
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "entries", key: adminKey }) });
       const j = await r.json();
       if (!j.ok) { if (j.error === "unauthorized") showKeyBox("That key didn't work."); else say("Couldn't load entries from the sheet."); return; }
       keyBox.hidden = true; say("");

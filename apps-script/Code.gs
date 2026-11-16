@@ -17,14 +17,17 @@
  *   POST {action:"fan"}          add a station character (+ optional message) -> {id, token, status}
  *   POST {action:"removeFan"}    remove one with its token (or ADMIN_KEY)
  * Crew review queue (ADMIN_KEY):
- *   GET  ?action=queue&key       characters waiting for approval + the review setting
+ *   POST {action:"queue", key}   characters waiting for approval + the review setting (crew reads are POST so the key stays out of URLs)
+ *   POST {action:"momentsAdmin"|"entries"|"emailList", key}   emailList = only guests who opted in to Jam updates
  *   POST {action:"review"}       {id, approve:true|false}
  *   POST {action:"setReview"}    {on:true|false}  off = characters without a message skip the queue
  *                                (messages always wait for a person). Stored as Script Property REVIEW.
  * Guest profiles (token = the private key the phone got when it made the character):
  *   GET  ?action=mine&id&token   now also returns name, look, tagline, fan number, outfit change, moments
  *   POST {action:"fan", email}   email is stored privately; it is how the guest gets back in later
+ *   POST {action:"fan", email, consent, updates}   email sign-ups need consent:true
  *   POST {action:"login"}        {email} -> that email's characters {id, token, name, status} (no emails are sent)
+ *   POST {action:"removeFan"}    with the guest's token also wipes their email, opt-in and photos
  *   POST {action:"editFan"}      {id, token, look}: outfit change, waits for the crew if already on stage
  *   POST {action:"moment"}       {fanId, token, image (base64 jpeg), thumb (data URL)}: up to 3 photos
  *   POST {action:"removeMoment"} {id, fanId, token} (or ADMIN_KEY)
@@ -35,7 +38,8 @@
  *   POST {action:"setWall"} {mode:"order"|"shuffle", order:[fanId…], next:fanId}   banner rotation (nothing is deleted)
  *   POST {action:"cropMoment"} {id, crop:{x,y,z}}   how a photo sits in its banner panel (also sent with reviewMoment)
  *   POST {action:"sendBack"} {id}   takes an approved fan off stage and back into the queue
- *   GET  ?action=momentsAdmin&key   approved moments with thumbnails
+ * Script Properties: REVIEW=off lets characters without a message go straight on stage; MOMENTS=on allows photo uploads
+ * (off by default). Run purgeEmails() after the event to delete every email/opt-in.
  * Photos go to a private Drive folder "AMJ26 Moments" and are only shared (anyone with the link) once approved.
  * Moments need Drive access: run setupPermissions once from the editor, then redeploy.
  * After editing, redeploy: Deploy -> Manage deployments -> Edit -> New version
@@ -66,9 +70,10 @@ const FAN_SHEET = "Fans";
 // email: private, only used so the guest can log back in. pending_look/change_status: an outfit change waiting for the crew.
 // updated_at: when an approved outfit change went live, so the stage redraws that character.
 const FAN_HEAD = ["created_at", "id", "name", "look_json", "token", "removed_at", "message", "status", "shown_at",
-  "email", "pending_look", "change_status", "updated_at"];
+  "email", "pending_look", "change_status", "updated_at", "consent_at", "updates_ok_at"];
+// consent_at: when they ticked the consent box. updates_ok_at: when they opted in to Jam update emails (blank = no).
 const F = { created: 0, id: 1, name: 2, look: 3, token: 4, removed: 5, message: 6, status: 7, shown: 8,
-  email: 9, pending: 10, change: 11, updated: 12 };
+  email: 9, pending: 10, change: 11, updated: 12, consent: 13, updates: 14 };
 const LOOK_KEYS = ["skin", "hair", "shirt", "pants", "acc", "hairStyle", "outfit", "bottom", "gear"];
 const MAX_FANS = 2000;
 const MAX_PENDING = 300;
@@ -81,11 +86,11 @@ function fanSheet_() {
     sh = ss.insertSheet(FAN_SHEET);
     sh.appendRow(FAN_HEAD);
     sh.setFrozenRows(1);
-  } else if (!CacheService.getScriptCache().get("fanhead2")) {
+  } else if (!CacheService.getScriptCache().get("fanhead3")) {
     // older sheets: add the new column headers once
     const head = sh.getRange(1, 1, 1, FAN_HEAD.length).getValues()[0];
-    if (String(head[F.updated]) !== "updated_at") sh.getRange(1, 1, 1, FAN_HEAD.length).setValues([FAN_HEAD]);
-    try { CacheService.getScriptCache().put("fanhead2", "1", 21600); } catch (x) {}
+    if (String(head[F.updates]) !== "updates_ok_at") sh.getRange(1, 1, 1, FAN_HEAD.length).setValues([FAN_HEAD]);
+    try { CacheService.getScriptCache().put("fanhead3", "1", 21600); } catch (x) {}
   }
   return sh;
 }
@@ -172,9 +177,16 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// 30 wrong crew keys in 10 minutes locks every admin action for 10 minutes (stops key guessing)
 function authed_(k) {
+  if (typeof k !== "string" || !k) return false;
+  const cache = CacheService.getScriptCache();
+  const bad = Number(cache.get("adminfail") || 0);
+  if (bad >= 30) return false;
   const real = PropertiesService.getScriptProperties().getProperty("ADMIN_KEY") || "";
-  return real.length >= 12 && typeof k === "string" && k === real;
+  if (real.length >= 12 && k === real) return true;
+  try { cache.put("adminfail", String(bad + 1), 600); } catch (x) {}
+  return false;
 }
 
 function clean_(s, n) {
@@ -214,6 +226,38 @@ function cleanEmail_(s) {
 }
 function maskEmail_(e) { e = String(e || ""); const i = e.indexOf("@"); return i > 0 ? e[0] + "•••" + e.slice(i) : ""; }
 function tokenOk_(r, token) { return typeof token === "string" && token.length >= 16 && token === String(r[F.token]); }
+
+function momentsOn_() { return PropertiesService.getScriptProperties().getProperty("MOMENTS") === "on"; }
+
+// Names go live without a person checking them while REVIEW is off, so block the obvious ones.
+// Long words match anywhere (after undoing 0->O, 1->I, 3->E, 4->A, 5->S, 7->T); short ones only as a whole word.
+const BLOCK_ANY = ["FUCK", "SHIT", "CUNT", "BITCH", "PUSSY", "NIGGER", "NIGGA", "FAGGOT", "WHORE", "SLUT", "RAPIST",
+  "PUKIMAK", "PUKI", "KANINA", "LANJIAO", "LANCIAO", "CHEEBYE", "CHEEBAI", "CHIBAI", "NABEI", "HITLER", "NAZI", "PORN", "PENIS", "VAGINA"];
+const BLOCK_WORD = ["KNN", "CCB", "KNNBCCB", "FK", "FU", "STFU", "WTF", "SEX", "RAPE", "DICK", "COCK", "ASS", "BABI", "LJ", "CB"];
+function nameBlocked_(name) {
+  const plain = String(name).replace(/0/g, "O").replace(/1/g, "I").replace(/3/g, "E").replace(/4/g, "A").replace(/5/g, "S").replace(/7/g, "T");
+  const squashed = plain.replace(/ /g, "");
+  if (BLOCK_ANY.some(w => squashed.indexOf(w) >= 0)) return true;
+  return plain.split(" ").concat([squashed]).some(w => BLOCK_WORD.indexOf(w) >= 0);
+}
+// at most 30 new characters a minute across everyone, so a script can't flood the stage
+function rateOk_() {
+  const cache = CacheService.getScriptCache(), k = "fanrate" + Math.floor(Date.now() / 60000);
+  const n = Number(cache.get(k) || 0);
+  if (n >= 30) return false;
+  try { cache.put(k, String(n + 1), 120); } catch (x) {}
+  return true;
+}
+
+/* Run once after the event (pick "purgeEmails" in the toolbar, then Run): blanks every email and opt-in.
+   Characters stay on stage; guests just can't log back in by email any more. */
+function purgeEmails() {
+  const sh = fanSheet_(), n = sh.getLastRow() - 1;
+  if (n < 1) return;
+  sh.getRange(2, F.email + 1, n, 1).clearContent();
+  sh.getRange(2, F.updates + 1, n, 1).clearContent();
+  Logger.log("Cleared emails and update opt-ins for " + n + " rows.");
+}
 
 
 function momSheet_() {
@@ -321,6 +365,10 @@ function handlePost_(e) {
     const message = clean_(b.message, MSG_MAX);
     const email = cleanEmail_(b.email);
     if (!name || !look || (b.email && !email)) return json_({ ok: false, error: "invalid" });
+    // guests signing up with an email must agree to the consent text (the crew station sends neither)
+    if (email && b.consent !== true) return json_({ ok: false, error: "invalid" });
+    if (nameBlocked_(name)) return json_({ ok: false, error: "name_blocked" });
+    if (!rateOk_()) return json_({ ok: false, error: "busy" });
     const id = Utilities.getUuid().replace(/-/g, "").slice(0, 16);
     const token = Utilities.getUuid().replace(/-/g, "");
     const now = Date.now();
@@ -330,13 +378,16 @@ function handlePost_(e) {
     try {
       const sh = fanSheet_();
       if (sh.getLastRow() - 1 >= MAX_FANS) return json_({ ok: false, error: "quota_exceeded" });
+      if (email && fanRows_(sh).filter(r => r[F.id] && !ms_(r[F.removed]) && String(r[F.email]).toLowerCase() === email).length >= 3)
+        return json_({ ok: false, error: "email_full" });
       if (status === "pending") {
         const n = sh.getLastRow() - 1;
         const waiting = n >= 1 ? sh.getRange(2, F.status + 1, n, 1).getValues().filter(v => v[0] === "pending").length : 0;
         if (waiting >= MAX_PENDING) return json_({ ok: false, error: "busy" });
       }
       sh.appendRow([now, text_(id), text_(name), text_(JSON.stringify(look)), text_(token), "",
-        message ? text_(message) : "", status, status === "approved" ? now : "", email ? text_(email) : "", "", "", ""]);
+        message ? text_(message) : "", status, status === "approved" ? now : "", email ? text_(email) : "", "", "", "",
+        email ? now : "", email && b.updates === true ? now : ""]);
     } finally {
       lock.releaseLock();
     }
@@ -354,6 +405,23 @@ function handlePost_(e) {
     return json_({ ok: true, fans: list });
   }
 
+  // crew: emails of guests who opted in to Jam updates (and haven't deleted their character)
+  if (b.action === "emailList") {
+    if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
+    const seen = {}, list = [];
+    fanRows_(fanSheet_()).forEach(r => {
+      const e = cleanEmail_(r[F.email]);
+      if (e && r[F.updates] && !ms_(r[F.removed]) && !seen[e]) { seen[e] = true; list.push(e); }
+    });
+    return json_({ ok: true, emails: list });
+  }
+
+  // crew reads go by POST so the key never sits in a URL
+  if (b.action === "queue" || b.action === "momentsAdmin" || b.action === "entries") {
+    if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
+    return json_(b.action === "queue" ? queue_() : b.action === "momentsAdmin" ? momentsAdmin_() : entries_());
+  }
+
   if (b.action === "editFan") {
     const look = cleanLook_(b.look);
     if (!look) return json_({ ok: false, error: "invalid" });
@@ -368,6 +436,11 @@ function handlePost_(e) {
         return json_({ ok: true, mode: "direct" });
       }
       if (st !== "approved") return json_({ ok: false, error: "not_allowed" });
+      if (!reviewOn_()) {                // pre-party: no crew check, the new look goes straight on stage
+        sh.getRange(hit.row, F.look + 1).setValue(text_(JSON.stringify(look)));
+        sh.getRange(hit.row, F.pending + 1, 1, 3).setValues([["", "", Date.now()]]);
+        return json_({ ok: true, mode: "live" });
+      }
       sh.getRange(hit.row, F.pending + 1, 1, 2).setValues([[text_(JSON.stringify(look)), "pending"]]);
     } finally {
       lock.releaseLock();
@@ -395,6 +468,7 @@ function handlePost_(e) {
   }
 
   if (b.action === "moment") {
+    if (!momentsOn_()) return json_({ ok: false, error: "moments_off" });
     const thumb = String(b.thumb || ""), img = String(b.image || "");
     if (thumb.indexOf("data:image/jpeg;base64,") !== 0 || thumb.length > 48000 || img.length < 2000 || img.length > 4000000)
       return json_({ ok: false, error: "invalid" });
@@ -553,6 +627,17 @@ function handlePost_(e) {
       const tokenOk = typeof b.token === "string" && b.token.length >= 16 && b.token === String(rows[i][3]);
       if (!tokenOk && !authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
       sh.getRange(i + 2, 6).setValue(Date.now());
+      // a guest deleting their own character: also forget their email, opt-in and photos
+      if (tokenOk) {
+        sh.getRange(i + 2, F.email + 1).clearContent();
+        sh.getRange(i + 2, F.consent + 1, 1, 2).clearContent();
+        const ms = momSheet_();
+        momRows_(ms).forEach((m, k) => {
+          if (String(m[M.fan]) !== String(b.id) || ms_(m[M.removed])) return;
+          ms.getRange(k + 2, M.removed + 1).setValue(Date.now()); trash_(m[M.file]);
+        });
+        try { CacheService.getScriptCache().remove("moments"); } catch (x) {}
+      }
       return json_({ ok: true });
     }
     return json_({ ok: false, error: "not_found" });
@@ -582,8 +667,11 @@ function handleGet_(e) {
   if (action === "fans") return json_(publicFans_(Number(e.parameter.since) || 0));
   if (action === "mine") return json_(mine_(e.parameter.id, String(e.parameter.token || "")));
   if (action === "moments") return ContentService.createTextOutput(publicMoments_()).setMimeType(ContentService.MimeType.JSON);
-  if (action === "queue") {
-    if (!authed_(e.parameter.key)) return json_({ ok: false, error: "unauthorized" });
+  if (!authed_(e.parameter.key)) return json_({ ok: false, error: "unauthorized" });
+  return json_(entries_());   // older costume-form pages; new pages POST {action:"entries"}
+}
+
+function queue_() {
     const rows = fanRows_(fanSheet_()), names = {};
     rows.forEach(r => { if (r[F.id]) names[String(r[F.id])] = String(r[F.name]); });
     const pending = rows.filter(r => r[F.id] && statusOf_(r) === "pending" && !ms_(r[F.removed])).map(fanOut_);
@@ -593,18 +681,17 @@ function handleGet_(e) {
       f.pendingLook = pl; return f;
     });
     const moments = momRows_(momSheet_()).filter(m => m[M.id] && m[M.status] === "pending" && !ms_(m[M.removed])).map(m => momOut_(m, names));
-    return json_({ ok: true, review: reviewOn_(), pending: pending, changes: changes, moments: moments });
-  }
-  if (action === "momentsAdmin") {
-    if (!authed_(e.parameter.key)) return json_({ ok: false, error: "unauthorized" });
+    return { ok: true, review: reviewOn_(), moments_on: momentsOn_(), pending: pending, changes: changes, moments: moments };
+}
+function momentsAdmin_() {
     const names = fanNames_();
     const list = momRows_(momSheet_()).filter(m => m[M.id] && m[M.status] === "approved" && !ms_(m[M.removed]))
       .map(m => momOut_(m, names)).sort((a, b) => b.createdAt - a.createdAt).slice(0, 80);
-    return json_({ ok: true, moments: list, wall: wall_() });
-  }
-  if (!authed_(e.parameter.key)) return json_({ ok: false, error: "unauthorized" });
+    return { ok: true, moments: list, wall: wall_() };
+}
+function entries_() {
   const sh = sheet_(), n = sh.getLastRow() - 1;
-  if (n < 1) return json_({ ok: true, entries: [] });
+  if (n < 1) return { ok: true, entries: [] };
   const rows = sh.getRange(2, 1, n, HEAD.length).getValues();
   const entries = rows.filter(r => r[1]).map(r => ({
     createdAt: r[0] instanceof Date ? r[0].getTime() : (Date.parse(r[0]) || 0),
@@ -616,5 +703,5 @@ function handleGet_(e) {
     pixels: String(r[6]),
     featured: r[8] === true || String(r[8]).toUpperCase() === "TRUE",
   }));
-  return json_({ ok: true, entries: entries });
+  return { ok: true, entries: entries };
 }
