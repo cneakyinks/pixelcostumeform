@@ -256,7 +256,15 @@ function mine_(id, token) {
 }
 function me_(r) { return String(r[F.id]); }
 
-function doPost(e) {
+// Any crash comes back as JSON with the reason, so the phone can show it instead of "couldn't reach the stage".
+function doPost(e) { return safe_(() => handlePost_(e)); }
+function doGet(e) { return safe_(() => handleGet_(e)); }
+function safe_(fn) {
+  try { return fn(); }
+  catch (err) { console.error(err && err.stack || err); return json_({ ok: false, error: "server", detail: String(err && err.message || err).slice(0, 200) }); }
+}
+
+function handlePost_(e) {
   let b;
   try { b = JSON.parse(e.postData.contents); } catch (x) { return json_({ ok: false, error: "bad_request" }); }
 
@@ -378,7 +386,9 @@ function doPost(e) {
       if (rows.length >= MAX_MOMENTS) return json_({ ok: false, error: "quota_exceeded" });
       if (rows.filter(r => String(r[M.fan]) === String(b.fanId) && !ms_(r[M.removed])).length >= MOM_PER_FAN)
         return json_({ ok: false, error: "full" });
-      const file = momFolder_().createFile(Utilities.newBlob(bytes, "image/jpeg", "moment-" + id + ".jpg"));
+      let file;
+      try { file = momFolder_().createFile(Utilities.newBlob(bytes, "image/jpeg", "moment-" + id + ".jpg")); }
+      catch (err) { console.error(err); return json_({ ok: false, error: "drive", detail: String(err && err.message || err).slice(0, 200) }); }
       sh.appendRow([Date.now(), text_(id), text_(String(b.fanId)), text_(file.getId()), text_(thumb), "pending", "", ""]);
     } finally {
       lock.releaseLock();
@@ -474,7 +484,7 @@ function doPost(e) {
   return json_({ ok: false, error: "unknown_action" });
 }
 
-function doGet(e) {
+function handleGet_(e) {
   const action = e.parameter.action;
   if (action === "pieces") return ContentService.createTextOutput(publicPieces_()).setMimeType(ContentService.MimeType.JSON);
   if (action === "fans") return json_(publicFans_(Number(e.parameter.since) || 0));
