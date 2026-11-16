@@ -23,8 +23,8 @@
  *                                (messages always wait for a person). Stored as Script Property REVIEW.
  * Guest profiles (token = the private key the phone got when it made the character):
  *   GET  ?action=mine&id&token   now also returns name, look, tagline, fan number, outfit change, moments
- *   POST {action:"fan", email}   email is stored privately and the profile link is emailed to it
- *   POST {action:"sendLink"}     {email} or {id, token}: email the profile link(s) again (rate limited)
+ *   POST {action:"fan", email}   email is stored privately; it is how the guest gets back in later
+ *   POST {action:"login"}        {email} -> that email's characters {id, token, name, status} (no emails are sent)
  *   POST {action:"editFan"}      {id, token, look}: outfit change, waits for the crew if already on stage
  *   POST {action:"moment"}       {fanId, token, image (base64 jpeg), thumb (data URL)}: up to 3 photos
  *   POST {action:"removeMoment"} {id, fanId, token} (or ADMIN_KEY)
@@ -33,7 +33,7 @@
  *   POST {action:"reviewChange"} / {action:"reviewMoment"}  {id, approve}
  *   GET  ?action=momentsAdmin&key   approved moments with thumbnails
  * Photos go to a private Drive folder "AMJ26 Moments" and are only shared (anyone with the link) once approved.
- * Redeploying asks you to allow Gmail (MailApp) and Drive access the first time.
+ * Moments need Drive access: run setupPermissions once from the editor, then redeploy.
  * After editing, redeploy: Deploy -> Manage deployments -> Edit -> New version
  * (keeps the same /exec URL).
  * Never commit the real ADMIN_KEY to the repo.
@@ -59,7 +59,7 @@ function sheet_() {
 const FAN_SHEET = "Fans";
 // status: pending | approved | rejected. Empty status (rows from before the review queue) counts as approved.
 // shown_at: when it went on stage (approval time), so the stage feed picks up late approvals.
-// email: private, only used to send the profile link. pending_look/change_status: an outfit change waiting for the crew.
+// email: private, only used so the guest can log back in. pending_look/change_status: an outfit change waiting for the crew.
 // updated_at: when an approved outfit change went live, so the stage redraws that character.
 const FAN_HEAD = ["created_at", "id", "name", "look_json", "token", "removed_at", "message", "status", "shown_at",
   "email", "pending_look", "change_status", "updated_at"];
@@ -171,18 +171,13 @@ function clean_(s, n) {
 // stops formula injection (=, +, -, @) and stops ids/pixels being read as numbers.
 function text_(s) { return "'" + s; }
 
-/* Run this once from the editor (pick "setupPermissions" in the toolbar, then Run).
-   It asks for Gmail + Drive access, then emails you a test so you know sending works. */
+/* Run this once from the editor (pick "setupPermissions" in the toolbar, then Run) to allow Drive access for moments. */
 function setupPermissions() {
-  const me = Session.getEffectiveUser().getEmail();
-  DriveApp.getRootFolder();
-  Logger.log("Emails left today: " + MailApp.getRemainingDailyQuota());
-  MailApp.sendEmail(me, "AMJ26 email test", "Email sending works. Guests will get their profile links from this account.");
-  Logger.log("Test email sent to " + me);
+  momFolder_();
+  Logger.log("Drive access OK. Moments folder: " + momFolder_().getUrl());
 }
 
-/* ===== Guest profiles: email links, outfit changes, moments ===== */
-const PROFILE_URL = "https://cneakyinks.github.io/amj26-live/";   // fixed here, never taken from the request
+/* ===== Guest profiles: email login, outfit changes, moments ===== */
 const MOM_SHEET = "Moments";
 const MOM_HEAD = ["created_at", "id", "fan_id", "file_id", "thumb", "status", "removed_at", "shown_at"];
 const M = { created: 0, id: 1, fan: 2, file: 3, thumb: 4, status: 5, removed: 6, shown: 7 };
@@ -194,25 +189,7 @@ function cleanEmail_(s) {
 }
 function maskEmail_(e) { e = String(e || ""); const i = e.indexOf("@"); return i > 0 ? e[0] + "•••" + e.slice(i) : ""; }
 function tokenOk_(r, token) { return typeof token === "string" && token.length >= 16 && token === String(r[F.token]); }
-function linkFor_(id, token) { return PROFILE_URL + "#me/" + id + "/" + token; }
 
-// one email listing every character made with this address
-function mailLinks_(email, list) {
-  if (!email || !list.length) return false;
-  if (MailApp.getRemainingDailyQuota() < 1) return false;
-  const body = ["Here's your Arts & Music Jam profile.", "",
-    "Open it to see if you're on the big screen, change your outfit, add moments and save your character card.", ""]
-    .concat(list.map(f => f.name + ": " + linkFor_(f.id, f.token)))
-    .concat(["", "Keep this email: the link is how you get back to your profile."]).join("\n");
-  const html = '<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#1b1530">' +
-    "<p>Here's your <b>Arts &amp; Music Jam</b> profile.</p>" +
-    "<p>Open it to see if you're on the big screen, change your outfit, add moments and save your character card.</p>" +
-    list.map(f => '<p><b>' + f.name + '</b><br><a href="' + linkFor_(f.id, f.token) +
-      '" style="display:inline-block;margin-top:6px;padding:10px 16px;background:#ff3fa4;color:#0a0718;text-decoration:none;font-weight:bold">Open my profile</a></p>').join("") +
-    '<p style="color:#6b6496;font-size:14px">Keep this email: the link is how you get back to your profile.</p></div>';
-  MailApp.sendEmail({ to: email, subject: "Your Arts & Music Jam profile", name: "Arts & Music Jam", body: body, htmlBody: html });
-  return true;
-}
 
 function momSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -329,29 +306,18 @@ function doPost(e) {
     } finally {
       lock.releaseLock();
     }
-    let mailed = false;
-    if (email) { try { mailed = mailLinks_(email, [{ id: id, token: token, name: name }]); } catch (x) {} }
-    return json_({ ok: true, id: id, token: token, createdAt: now, status: status, mailed: mailed });
+    return json_({ ok: true, id: id, token: token, createdAt: now, status: status });
   }
 
-  if (b.action === "sendLink") {
-    // never says whether an address has characters
-    let email = cleanEmail_(b.email);
-    const rows = fanRows_(fanSheet_());
-    if (!email && b.id) {
-      const r = rows.filter(x => String(x[F.id]) === String(b.id))[0];
-      if (!r || !tokenOk_(r, b.token)) return json_({ ok: false, error: "not_found" });
-      email = cleanEmail_(r[F.email]);
-      if (!email) return json_({ ok: false, error: "no_email" });
-    }
+  if (b.action === "login") {
+    const email = cleanEmail_(b.email);
     if (!email) return json_({ ok: false, error: "invalid" });
-    const cache = CacheService.getScriptCache(), ck = "mail:" + email;
-    if (cache.get(ck)) return json_({ ok: true });
-    try { cache.put(ck, "1", 120); } catch (x) {}
-    const list = rows.filter(r => r[F.id] && cleanEmail_(r[F.email]) === email && !ms_(r[F.removed]) && statusOf_(r) !== "rejected")
-      .map(r => ({ id: String(r[F.id]), token: String(r[F.token]), name: String(r[F.name]) }));
-    try { mailLinks_(email, list); } catch (x) { return json_({ ok: false, error: "mail_failed" }); }
-    return json_({ ok: true });
+    const list = fanRows_(fanSheet_())
+      .filter(r => r[F.id] && cleanEmail_(r[F.email]) === email && !ms_(r[F.removed]) && statusOf_(r) !== "rejected")
+      .map(r => ({ id: String(r[F.id]), token: String(r[F.token]), name: String(r[F.name]), status: statusOf_(r), createdAt: ms_(r[F.created]) }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+    if (!list.length) return json_({ ok: false, error: "no_match" });
+    return json_({ ok: true, fans: list });
   }
 
   if (b.action === "editFan") {
