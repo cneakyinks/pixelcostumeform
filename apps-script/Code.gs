@@ -32,6 +32,7 @@
  * Crew (ADMIN_KEY): queue also returns outfit changes + moments waiting;
  *   POST {action:"reviewChange"} / {action:"reviewMoment"}  {id, approve}
  *   POST {action:"saveMoments"} {items:[{id, do:"approve"|"reject"|"crop"|"remove", crop}]}   one guest's banner in one go
+ *   POST {action:"setWall"} {mode:"order"|"shuffle", order:[fanId…], next:fanId}   banner rotation (nothing is deleted)
  *   POST {action:"cropMoment"} {id, crop:{x,y,z}}   how a photo sits in its banner panel (also sent with reviewMoment)
  *   POST {action:"sendBack"} {id}   takes an approved fan off stage and back into the queue
  *   GET  ?action=momentsAdmin&key   approved moments with thumbnails
@@ -94,6 +95,14 @@ function fanRows_(sh) {
   return n >= 1 ? sh.getRange(2, 1, n, FAN_HEAD.length).getValues() : [];
 }
 function statusOf_(r) { return String(r[F.status] || "approved"); }
+// banner rotation, set by the crew: "order" (carousel in a set sequence) or "shuffle"; next = show this guest next
+function wall_() {
+  const p = PropertiesService.getScriptProperties();
+  let order = [];
+  try { order = JSON.parse(p.getProperty("WALL_ORDER") || "[]"); } catch (x) {}
+  return { mode: p.getProperty("WALL_MODE") === "shuffle" ? "shuffle" : "order", order: Array.isArray(order) ? order.map(String) : [],
+    next: p.getProperty("WALL_NEXT") || "", nextAt: Number(p.getProperty("WALL_NEXT_AT")) || 0 };
+}
 function reviewOn_() { return PropertiesService.getScriptProperties().getProperty("REVIEW") !== "off"; }
 
 // Keep only the expected keys, as small ints or short id strings. The stage re-checks everything.
@@ -236,7 +245,7 @@ function publicMoments_() {
   fanRows_(fanSheet_()).forEach(r => { if (r[F.id] && statusOf_(r) === "approved" && !ms_(r[F.removed])) live[String(r[F.id])] = true; });
   const list = momRows_(momSheet_()).filter(r => r[M.id] && r[M.status] === "approved" && !ms_(r[M.removed]) && live[String(r[M.fan])])
     .map(r => ({ id: String(r[M.id]), fanId: String(r[M.fan]), url: momUrl_(String(r[M.file])), shownAt: ms_(r[M.shown]), createdAt: ms_(r[M.created]), crop: cropOut_(r[M.crop]) }));
-  const out = JSON.stringify({ ok: true, moments: list });
+  const out = JSON.stringify({ ok: true, moments: list, wall: wall_() });
   try { cache.put("moments", out, 10); } catch (x) {}
   return out;
 }
@@ -519,6 +528,16 @@ function handlePost_(e) {
     return json_({ ok: true });
   }
 
+  if (b.action === "setWall") {
+    if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
+    const p = PropertiesService.getScriptProperties(), id = v => String(v || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
+    if (b.mode === "order" || b.mode === "shuffle") p.setProperty("WALL_MODE", b.mode);
+    if (Array.isArray(b.order)) p.setProperty("WALL_ORDER", JSON.stringify(b.order.slice(0, 300).map(id).filter(Boolean)));
+    if (b.next) { p.setProperty("WALL_NEXT", id(b.next)); p.setProperty("WALL_NEXT_AT", String(Date.now())); }
+    try { CacheService.getScriptCache().remove("moments"); } catch (x) {}
+    return json_({ ok: true, wall: wall_() });
+  }
+
   if (b.action === "setReview") {
     if (!authed_(b.key)) return json_({ ok: false, error: "unauthorized" });
     PropertiesService.getScriptProperties().setProperty("REVIEW", b.on === false ? "off" : "on");
@@ -581,7 +600,7 @@ function handleGet_(e) {
     const names = fanNames_();
     const list = momRows_(momSheet_()).filter(m => m[M.id] && m[M.status] === "approved" && !ms_(m[M.removed]))
       .map(m => momOut_(m, names)).sort((a, b) => b.createdAt - a.createdAt).slice(0, 80);
-    return json_({ ok: true, moments: list });
+    return json_({ ok: true, moments: list, wall: wall_() });
   }
   if (!authed_(e.parameter.key)) return json_({ ok: false, error: "unauthorized" });
   const sh = sheet_(), n = sh.getLastRow() - 1;
