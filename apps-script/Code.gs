@@ -171,6 +171,16 @@ function clean_(s, n) {
 // stops formula injection (=, +, -, @) and stops ids/pixels being read as numbers.
 function text_(s) { return "'" + s; }
 
+/* Run this once from the editor (pick "setupPermissions" in the toolbar, then Run).
+   It asks for Gmail + Drive access, then emails you a test so you know sending works. */
+function setupPermissions() {
+  const me = Session.getEffectiveUser().getEmail();
+  DriveApp.getRootFolder();
+  Logger.log("Emails left today: " + MailApp.getRemainingDailyQuota());
+  MailApp.sendEmail(me, "AMJ26 email test", "Email sending works. Guests will get their profile links from this account.");
+  Logger.log("Test email sent to " + me);
+}
+
 /* ===== Guest profiles: email links, outfit changes, moments ===== */
 const PROFILE_URL = "https://cneakyinks.github.io/amj26-live/";   // fixed here, never taken from the request
 const MOM_SHEET = "Moments";
