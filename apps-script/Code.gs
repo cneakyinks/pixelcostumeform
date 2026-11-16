@@ -31,6 +31,7 @@
  *   GET  ?action=moments         approved moments for the stage banner (Drive image links)
  * Crew (ADMIN_KEY): queue also returns outfit changes + moments waiting;
  *   POST {action:"reviewChange"} / {action:"reviewMoment"}  {id, approve}
+ *   POST {action:"cropMoment"} {id, crop:{x,y,z}}   how a photo sits in its banner panel (also sent with reviewMoment)
  *   POST {action:"sendBack"} {id}   takes an approved fan off stage and back into the queue
  *   GET  ?action=momentsAdmin&key   approved moments with thumbnails
  * Photos go to a private Drive folder "AMJ26 Moments" and are only shared (anyone with the link) once approved.
@@ -182,8 +183,19 @@ function setupPermissions() {
 
 /* ===== Guest profiles: email login, outfit changes, moments ===== */
 const MOM_SHEET = "Moments";
-const MOM_HEAD = ["created_at", "id", "fan_id", "file_id", "thumb", "status", "removed_at", "shown_at"];
-const M = { created: 0, id: 1, fan: 2, file: 3, thumb: 4, status: 5, removed: 6, shown: 7 };
+const MOM_HEAD = ["created_at", "id", "fan_id", "file_id", "thumb", "status", "removed_at", "shown_at", "crop"];
+const M = { created: 0, id: 1, fan: 2, file: 3, thumb: 4, status: 5, removed: 6, shown: 7, crop: 8 };
+
+// how a photo sits in its banner panel, set by the crew: focus x/y in % and zoom (1 = whole photo visible)
+function cleanCrop_(c) {
+  if (!c || typeof c !== "object") return "";
+  const n = (v, lo, hi, d) => { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+  return [Math.round(n(c.x, 0, 100, 50)), Math.round(n(c.y, 0, 100, 50)), Math.round(n(c.z, 1, 8, 1) * 100) / 100].join(",");
+}
+function cropOut_(s) {
+  const p = String(s || "").split(",").map(Number);
+  return p.length === 3 && p.every(isFinite) ? { x: p[0], y: p[1], z: p[2] } : null;
+}
 const MOM_PER_FAN = 3, MAX_MOMENTS = 1500;
 
 function cleanEmail_(s) {
@@ -198,6 +210,7 @@ function momSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(MOM_SHEET);
   if (!sh) { sh = ss.insertSheet(MOM_SHEET); sh.appendRow(MOM_HEAD); sh.setFrozenRows(1); }
+  else if (sh.getLastColumn() < MOM_HEAD.length) sh.getRange(1, MOM_HEAD.length).setValue(MOM_HEAD[MOM_HEAD.length - 1]);
   return sh;
 }
 function momRows_(sh) {
@@ -221,14 +234,14 @@ function publicMoments_() {
   const live = {};
   fanRows_(fanSheet_()).forEach(r => { if (r[F.id] && statusOf_(r) === "approved" && !ms_(r[F.removed])) live[String(r[F.id])] = true; });
   const list = momRows_(momSheet_()).filter(r => r[M.id] && r[M.status] === "approved" && !ms_(r[M.removed]) && live[String(r[M.fan])])
-    .map(r => ({ id: String(r[M.id]), fanId: String(r[M.fan]), url: momUrl_(String(r[M.file])), shownAt: ms_(r[M.shown]) }));
+    .map(r => ({ id: String(r[M.id]), fanId: String(r[M.fan]), url: momUrl_(String(r[M.file])), shownAt: ms_(r[M.shown]), crop: cropOut_(r[M.crop]) }));
   const out = JSON.stringify({ ok: true, moments: list });
   try { cache.put("moments", out, 10); } catch (x) {}
   return out;
 }
 function momOut_(r, names) {
   return { id: String(r[M.id]), fanId: String(r[M.fan]), name: names ? (names[String(r[M.fan])] || "") : undefined,
-    thumb: String(r[M.thumb] || ""), status: String(r[M.status]), createdAt: ms_(r[M.created]) };
+    thumb: String(r[M.thumb] || ""), status: String(r[M.status]), createdAt: ms_(r[M.created]), shownAt: ms_(r[M.shown]), crop: cropOut_(r[M.crop]) };
 }
 function fanNames_() { const o = {}; fanRows_(fanSheet_()).forEach(r => { if (r[F.id]) o[String(r[F.id])] = String(r[F.name]); }); return o; }
 
@@ -399,9 +412,9 @@ function handlePost_(e) {
     return json_({ ok: true, id: id });
   }
 
-  if (b.action === "removeMoment" || b.action === "reviewMoment") {
+  if (b.action === "removeMoment" || b.action === "reviewMoment" || b.action === "cropMoment") {
     const admin = authed_(b.key);
-    if (b.action === "reviewMoment" && !admin) return json_({ ok: false, error: "unauthorized" });
+    if (b.action !== "removeMoment" && !admin) return json_({ ok: false, error: "unauthorized" });
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
@@ -414,7 +427,11 @@ function handlePost_(e) {
         const fan = findFan_(fanSheet_(), r[M.fan]);
         if (!fan || !tokenOk_(fan.r, b.token)) return json_({ ok: false, error: "unauthorized" });
       }
-      if (b.action === "removeMoment") {
+      const crop = cleanCrop_(b.crop);
+      if (b.action === "cropMoment") {
+        if (!crop) return json_({ ok: false, error: "invalid" });
+        sh.getRange(row, M.crop + 1).setValue(text_(crop));
+      } else if (b.action === "removeMoment") {
         sh.getRange(row, M.removed + 1).setValue(Date.now());
         trash_(r[M.file]);
       } else if (b.approve === true) {
@@ -422,6 +439,7 @@ function handlePost_(e) {
         DriveApp.getFileById(String(r[M.file])).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         sh.getRange(row, M.status + 1).setValue("approved");
         sh.getRange(row, M.shown + 1).setValue(Date.now());
+        if (crop) sh.getRange(row, M.crop + 1).setValue(text_(crop));
       } else {
         if (r[M.status] !== "pending") return json_({ ok: false, error: "not_found" });
         sh.getRange(row, M.status + 1).setValue("rejected");
